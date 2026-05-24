@@ -17,6 +17,7 @@ class HealthService {
     await Hive.openBox(testsBox);
   }
 
+
   // --- Chronic Conditions ---
   static List<ChronicCondition> getConditions() {
     final box = Hive.box(conditionsBox);
