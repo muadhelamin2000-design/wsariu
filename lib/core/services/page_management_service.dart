@@ -106,7 +106,7 @@ class PageManagementService {
     final settingsBox = await Hive.openBox('settings_box');
     final currentVersion = settingsBox.get('pages_structure_version', defaultValue: 0);
     
-    if (currentVersion < 9) {
+    if (currentVersion < 10) {
       await Hive.box(boxName).clear();
       await Hive.box(sectionBoxName).clear();
       // فتح صندوق شريط التنقل قبل مسحه لتجنب خطأ Box not found
@@ -114,7 +114,7 @@ class PageManagementService {
       await navBox.clear();
       await _seedDefaultSections();
       await _seedDefaultPages();
-      await settingsBox.put('pages_structure_version', 9);
+      await settingsBox.put('pages_structure_version', 10);
     }
   }
 
@@ -164,6 +164,7 @@ class PageManagementService {
     final defaults = [
       // 1. الجانب الروحي (spiritual)
       PageItem(id: 'quran', name: 'القرآن الكريم', route: '/worship/quran', iconData: '📖', sectionKey: 'spiritual'),
+      PageItem(id: 'surah_names', name: 'أسماء السور', route: '/worship/surah-names', iconData: '📜', sectionKey: 'spiritual'),
       PageItem(id: 'addiction', name: 'عوضه الله', route: '/worship/awadho-allah', iconData: '🤝', sectionKey: 'spiritual'),
       PageItem(id: 'knowledge', name: 'حُجَّة لي', route: '/worship/hujja-li', iconData: '📚', sectionKey: 'spiritual'),
       PageItem(id: 'prayers', name: 'العبادات', route: '/worship/prayers', iconData: '🕌', sectionKey: 'spiritual'),

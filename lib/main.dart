@@ -43,10 +43,13 @@ import 'core/services/quick_link_service.dart';
 import 'core/services/locale_service.dart';
 import 'core/services/security_service.dart';
 import 'core/services/badge_service.dart';
+import 'core/configurations/shared_preferences.dart';
+import 'core/service_locator.dart';
 
 import 'dart:async';
 
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,14 +68,13 @@ void main() async {
   
   // تهيئة Hive الأساسي
   await Hive.initFlutter();
+  await CacheHelper.init();
   
-  // تهيئة الإعدادات الأساسية فوراً
-  await ThemeService.init();
+  // تهيئة الخدمات الأساسية وتسجيلها في GetIt
+  await initializeEssentialServices();
+  
+  // تهيئة باقي الإعدادات الأساسية
   await LocaleService.init();
-  await PageManagementService.init();
-  await DashboardSettingsService.init();
-  await QuickLinkService.init();
-  await NavigationService.init();
   await SunanService.init();
   
   // تهيئة الخدمات بشكل متوازي لتسريع تشغيل التطبيق
@@ -114,10 +116,6 @@ void main() async {
   // تهيئة الإشعارات
   await NotificationService.init();
   
-  // تهيئة بيانات الوقت المحلية
-  await initializeDateFormatting('ar_SA', null);
-  await initializeDateFormatting('en_US', null);
-
   runApp(const WasariuApp());
 }
 
@@ -132,27 +130,34 @@ class WasariuApp extends StatelessWidget {
         return ValueListenableBuilder<ThemeMode>(
           valueListenable: ThemeService.themeNotifier,
           builder: (_, ThemeMode currentMode, __) {
-            return MaterialApp.router(
-              title: 'وَسَارِعُواُ',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: currentMode,
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              supportedLocales: const [
-                Locale('ar', 'SA'),
-                Locale('en', 'US'),
-              ],
-              locale: currentLocale,
-              routerConfig: AppRouter.router,
+            return ScreenUtilInit(
+              designSize: const Size(375, 812),
+              minTextAdapt: true,
+              splitScreenMode: true,
               builder: (context, child) {
-                return Directionality(
-                  textDirection: currentLocale.languageCode == 'ar' ? TextDirection.rtl : TextDirection.ltr,
-                  child: child!,
+                return MaterialApp.router(
+                  title: 'وَسَارِعُواُ',
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme,
+                  darkTheme: AppTheme.darkTheme,
+                  themeMode: currentMode,
+                  localizationsDelegates: const [
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  supportedLocales: const [
+                    Locale('ar', 'SA'),
+                    Locale('en', 'US'),
+                  ],
+                  locale: currentLocale,
+                  routerConfig: AppRouter.router,
+                  builder: (context, child) {
+                    return Directionality(
+                      textDirection: currentLocale.languageCode == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+                      child: child!,
+                    );
+                  },
                 );
               },
             );

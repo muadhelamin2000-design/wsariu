@@ -56,6 +56,7 @@ class AnalyticsService {
   static late final Box<Map> _analyticsBox;
   static bool _initialized = false;
 
+  AnalyticsService();
   AnalyticsService._();
 
   static Future<void> init() async {
@@ -254,4 +255,3 @@ class AnalyticsService {
     }).toList();
   }
 }
-

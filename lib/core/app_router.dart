@@ -17,6 +17,8 @@ import '../features/worship/journal_screen.dart';
 import '../features/worship/secret_with_god_screen.dart';
 import '../features/worship/addiction_screen.dart';
 import '../features/worship/knowledge_screen.dart';
+import '../features/worship/surah_names_screen.dart';
+import '../core/flutter_quran/src/flutter_quran_screen.dart';
 import '../features/health/nutrition_screen.dart';
 import '../features/health/workout_screen.dart';
 import '../features/health/sleep_intelligence_screen.dart';
@@ -82,6 +84,16 @@ class AppRouter {
         path: '/worship',
         builder: (context, state) => const SectionScreen(title: 'الجانب الروحي', sectionKey: 'spiritual'),
         routes: [
+          GoRoute(
+            path: 'quran', 
+            builder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              return FlutterQuranScreen(
+                initialSurah: extra?['surahNumber'],
+              );
+            }
+          ),
+          GoRoute(path: 'surah-names', builder: (context, state) => const SurahNamesScreen()),
           GoRoute(path: 'prayers', builder: (context, state) => const WorshipScreen()),
           GoRoute(path: 'zad-maad', builder: (context, state) => const ZadMaadScreen()),
           GoRoute(path: 'journal', builder: (context, state) => const JournalScreen()),

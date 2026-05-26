@@ -12,6 +12,8 @@ class SecurityService {
   
   static Uint8List? _cachedKey;
 
+  static Future<void> init() async {}
+
   /// تهيئة مفتاح التشفير أو استرجاعه
   static Future<Uint8List> getEncryptionKey() async {
     if (_cachedKey != null) return _cachedKey!;

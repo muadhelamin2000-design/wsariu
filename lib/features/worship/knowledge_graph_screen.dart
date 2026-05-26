@@ -132,7 +132,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
       children: [
         if (_selectedCategoryId != null)
           Container(
-            color: AppTheme.accentGold.withOpacity(0.1),
+            color: AppTheme.accentGold.withValues(alpha: 0.1),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
@@ -143,7 +143,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
             ),
           ),
         Expanded(
-          child: filtered.isEmpty 
+          child: filtered.isEmpty
             ? const Center(child: Text('لا توجد بطاقات هنا، أضف معلومة جديدة واربطها بتخصصك'))
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -163,7 +163,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
         title: Text(node.contentText, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(catNames.isEmpty ? 'غير مصنف' : 'التخصصات: ${catNames.join(' | ')}', 
+        subtitle: Text(catNames.isEmpty ? 'غير مصنف' : 'التخصصات: ${catNames.join(' | ')}',
           style: const TextStyle(fontSize: 12, color: AppTheme.primaryGreen)),
         children: [
           Padding(
@@ -193,7 +193,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                             );
                           }
                         }
-                      }, 
+                      },
                       child: Text(link, style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline, fontSize: 13)),
                     ),
                   )),
@@ -210,7 +210,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                         _searchQuery = ln.contentText;
                         _selectedCategoryId = null; // Reset category filter to find the linked node
                       });
-                    }, 
+                    },
                     avatar: const Icon(Icons.link, size: 14),
                   )).toList(),
                 ),
@@ -292,7 +292,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                 ),
                 const Divider(),
                 const Text('الفوائد المستنبطة', style: TextStyle(fontWeight: FontWeight.bold)),
-                ...benefits.map((b) => ListTile(title: Text(b, fontSize: 13), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => benefits.remove(b))))),
+                ...benefits.map((b) => ListTile(title: Text(b), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => benefits.remove(b))))),
                 Row(children: [
                   Expanded(child: TextField(controller: benefitController, decoration: const InputDecoration(hintText: 'اكتب فائدة...'))),
                   IconButton(icon: const Icon(Icons.add_circle), onPressed: () {
@@ -301,7 +301,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                 ]),
                 const Divider(),
                 const Text('روابط الوسائط (يوتيوب، صور، مقالات)', style: TextStyle(fontWeight: FontWeight.bold)),
-                ...mediaLinks.map((m) => ListTile(title: Text(m, fontSize: 12), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => mediaLinks.remove(m))))),
+                ...mediaLinks.map((m) => ListTile(title: Text(m), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => mediaLinks.remove(m))))),
                 Row(children: [
                   Expanded(child: TextField(controller: mediaController, decoration: const InputDecoration(hintText: 'أضف رابط URL...'))),
                   IconButton(icon: const Icon(Icons.add_link), onPressed: () {
@@ -396,7 +396,8 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
             onPressed: () async {
               await NodeService.deleteNode(n.id);
               _loadData();
-              if (mounted) Navigator.pop(context);
+              if (!context.mounted) return;
+              Navigator.pop(context);
             },
             child: const Text('حذف', style: TextStyle(color: Colors.red)),
           ),

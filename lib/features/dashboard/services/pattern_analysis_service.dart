@@ -23,10 +23,11 @@ class PatternAnalysisService {
   static late final Box<Map> _patternsBox;
   static bool _initialized = false;
 
-  PatternAnalysisService._();
+  PatternAnalysisService();
+  PatternAnalysisService._internal();
 
   static Future<void> init() async {
-    _instance = PatternAnalysisService._();
+    _instance = PatternAnalysisService._internal();
     _patternsBox = await Hive.openBox<Map>('patterns_data');
     _initialized = true;
   }
@@ -232,4 +233,3 @@ class PatternAnalysisService {
     });
   }
 }
-

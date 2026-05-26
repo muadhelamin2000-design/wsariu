@@ -1,49 +1,49 @@
 import 'package:get_it/get_it.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:just_audio/just_audio.dart';
 
 // استيراد جميع الخدمات
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:wasariu/core/services/quick_link_service.dart';
+import '../features/auth/services/auth_service.dart';
+import '../features/dashboard/services/dashboard_settings_service.dart';
+import '../features/dashboard/services/navigation_service.dart';
+import '../features/dashboard/services/pattern_analysis_service.dart';
+import '../features/dashboard/services/screen_time_service.dart';
+import '../features/discipline/services/entertainment_service.dart';
+import '../features/discipline/services/habit_service.dart';
+import '../features/discipline/services/incremental_habit_service.dart';
+import '../features/discipline/services/notification_service.dart';
+import '../features/discipline/services/progress_service.dart';
+import '../features/discipline/services/routine_service.dart';
+import '../features/discipline/services/task_service.dart';
+import '../features/health/services/analytics_service.dart';
+import '../features/health/services/health_service.dart';
+import '../features/health/services/sleep_service.dart';
+import '../features/learning/services/memo_service.dart';
+import '../features/learning/services/study_service.dart';
+import '../features/learning/services/study_session_service.dart';
+import '../features/library/services/library_service.dart';
+import '../features/personal_matters/services/personal_matters_service.dart';
+import '../features/profile/services/life_link_service.dart';
+import '../features/profile/services/user_service.dart';
+import '../features/worship/services/addiction_service.dart';
+import '../features/worship/services/journal_service.dart';
+import '../features/worship/services/secret_service.dart';
+import '../features/worship/services/worship_service.dart';
+import '../features/worship/services/zad_service.dart';
 import 'services/theme_service.dart';
 import 'services/page_management_service.dart';
 import 'services/security_service.dart';
-import 'features/dashboard/services/dashboard_settings_service.dart';
-import 'features/dashboard/services/navigation_service.dart';
-import 'features/dashboard/services/screen_time_service.dart';
-import 'features/discipline/services/habit_service.dart';
-import 'features/discipline/services/task_service.dart';
-import 'features/discipline/services/routine_service.dart';
-import 'features/discipline/services/progress_service.dart';
-import 'features/discipline/services/notification_service.dart';
-import 'features/discipline/services/incremental_habit_service.dart';
-import 'features/discipline/services/entertainment_service.dart';
-import 'features/worship/services/worship_service.dart';
-import 'features/worship/services/journal_service.dart';
-import 'features/worship/services/secret_service.dart';
-import 'features/worship/services/addiction_service.dart';
-import 'features/worship/services/knowledge_service.dart' as worship_knowledge;
-import 'features/worship/services/node_service.dart';
-import 'features/health/services/health_service.dart';
-import 'features/health/services/sleep_service.dart';
-import 'features/health/services/analytics_service.dart';
-import 'features/learning/services/study_service.dart';
-import 'features/profile/services/user_service.dart';
-import 'features/auth/services/auth_service.dart';
-import 'features/personal_matters/services/personal_matters_service.dart';
-import 'features/learning/services/study_session_service.dart';
-import 'features/learning/services/memo_service.dart';
-import 'features/learning/services/knowledge_service.dart' as learning_knowledge;
-import 'features/library/services/library_service.dart';
-import 'features/profile/services/life_link_service.dart';
-import 'features/worship/services/zad_service.dart';
-import 'services/quick_link_service.dart';
-import 'features/dashboard/services/pattern_analysis_service.dart';
+import '../features/quran/presentation/manager/hifz_cubit.dart';
 
 final getIt = GetIt.instance;
 
 /// 🚀 تهيئة سريعة فقط للخدمات الأساسية
 Future<void> initializeEssentialServices() async {
   // تهيئة Hive
-  import 'package:hive_flutter/hive_flutter.dart';
   await Hive.initFlutter();
 
   // الخدمات الأساسية فقط (التي تحتاجها التطبيق للبدء)
@@ -52,16 +52,19 @@ Future<void> initializeEssentialServices() async {
   await DashboardSettingsService.init();
   await QuickLinkService.init();
   await NavigationService.init();
-  await SecurityService.init(); // ✅ تشفير
+  // SecurityService doesn't need explicit init call anymore
 
   // تهيئة الوقت
   await initializeDateFormatting('ar_SA', null);
   await initializeDateFormatting('en_US', null);
 
   // تسجيل الخدمات الأساسية في Service Locator
+  getIt.registerSingleton<AudioPlayer>(AudioPlayer());
   getIt.registerSingleton<ThemeService>(ThemeService());
   getIt.registerSingleton<SecurityService>(SecurityService());
   getIt.registerSingleton<PageManagementService>(PageManagementService());
+  getIt.registerSingleton<HifzCubit>(HifzCubit());
+  getIt.registerSingleton<AnalyticsService>(AnalyticsService());
 }
 
 /// 🔗 تهيئة باقي الخدمات بطريقة كسولة (Lazy)
@@ -222,8 +225,7 @@ Future<void> ensureServiceInitialized(String serviceName) async {
 }
 
 /// 🔥 دالة مساعدة للحصول على الخدمة مع تهيئتها تلقائياً
-Future<T> getService<T>(String serviceName) async {
+Future<T> getService<T extends Object>(String serviceName) async {
   await ensureServiceInitialized(serviceName);
   return getIt<T>();
 }
-
