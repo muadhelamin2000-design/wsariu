@@ -3,6 +3,7 @@ enum MemoType { memo, dialogue, idea, data }
 class Memo {
   final String id;
   final String userId;
+  final String title; // New
   final String content;
   final DateTime date;
   final MemoType type;
@@ -24,6 +25,7 @@ class Memo {
   Memo({
     required this.id,
     required this.userId,
+    this.title = '', // Default empty for old data
     required this.content,
     required this.date,
     required this.type,
@@ -39,6 +41,7 @@ class Memo {
     return {
       'id': id,
       'userId': userId,
+      'title': title,
       'content': content,
       'date': date.toIso8601String(),
       'type': type.index,
@@ -55,6 +58,7 @@ class Memo {
     return Memo(
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
+      title: map['title'] ?? '',
       content: map['content'] ?? '',
       date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
       type: MemoType.values[map['type'] ?? 0],

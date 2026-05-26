@@ -13,6 +13,8 @@ import '../../core/widgets/quick_link_navigator.dart';
 import '../../core/widgets/modern_dialog.dart';
 import '../../core/services/theme_service.dart';
 import '../dashboard/services/screen_time_service.dart';
+import '../../core/services/ai_context_builder.dart';
+import '../chat/ai_chat_screen.dart';
 
 // Fixed file structure
 import '../../core/mixins/help_feature_mixin.dart';
@@ -53,6 +55,14 @@ class _AddictionScreenState extends State<AddictionScreen> with HelpFeatureMixin
             '- سجل/سجلي المواقف التي تثير رغباتك لتتجنبها/لتتجنبيها.\n'
             '- استخدم/استخدمي المتصفح الآمن في لحظات الضعف.\n'
             '- تذكر/تذكري أن من ترك شيئاً لله عوضه الله خيراً منه.'
+          ),
+          IconButton(
+            icon: const Icon(Icons.psychology_outlined, color: Color(0xFFC8A24A)),
+            tooltip: 'رفيق التعافي',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.addiction)),
+            ),
           ),
           TextButton(
             onPressed: _showAddHabitDialog,

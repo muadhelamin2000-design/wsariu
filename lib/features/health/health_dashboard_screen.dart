@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/app_theme.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/widgets/modern_dialog.dart';

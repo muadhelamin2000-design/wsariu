@@ -43,13 +43,23 @@ import 'core/services/quick_link_service.dart';
 import 'core/services/locale_service.dart';
 import 'core/services/security_service.dart';
 import 'core/services/badge_service.dart';
+import 'core/services/ai_service.dart';
 
 import 'dart:async';
 
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // السماح بتدوير الشاشة في كافة الاتجاهات
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   
   try {
     debugPrint("Initializing JustAudioBackground...");
@@ -67,6 +77,7 @@ void main() async {
   await Hive.initFlutter();
   
   // تهيئة الإعدادات الأساسية فوراً
+  await AIService.init();
   await ThemeService.init();
   await LocaleService.init();
   await PageManagementService.init();

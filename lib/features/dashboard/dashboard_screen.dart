@@ -21,6 +21,9 @@ import '../../core/widgets/modern_dialog.dart';
 import '../../core/widgets/smart_summary_widget.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../core/services/ai_context_builder.dart';
+import '../chat/ai_chat_screen.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -148,7 +151,13 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
                     ),
                     IconButton(
                       icon: const Icon(Icons.library_books_outlined, color: Colors.grey, size: 24), 
+                      tooltip: 'المكتبة',
                       onPressed: () => context.push('/library-choice')
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.psychology_outlined, color: Color(0xFFC8A24A), size: 24),
+                      tooltip: 'رفيق',
+                      onPressed: () => _showAIOptions(context)
                     ),
                     IconButton(
                       icon: const Icon(Icons.search_outlined, color: Colors.grey, size: 24), 
@@ -697,5 +706,49 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final nameController = TextEditingController(text: section.name);
     final iconController = TextEditingController(text: section.icon);
     ModernDialog.show(context: context, title: 'تعديل القسم', content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم القسم')), const SizedBox(height: 12), TextField(controller: iconController, decoration: const InputDecoration(labelText: 'الأيقونة (إيموجي)'))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), ElevatedButton(onPressed: () async { if (nameController.text.isNotEmpty) { section.name = nameController.text; section.icon = iconController.text; await PageManagementService.saveSection(section); if (mounted) Navigator.pop(context); } }, child: const Text('حفظ'))]);
+  }
+
+  void _showAIOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('رفيق الذكاء الاصطناعي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_outlined, color: Colors.blue),
+            title: const Text('رفيق العام'),
+            subtitle: const Text('مساعد شامل في كافة جوانب حياتك'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.general)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.analytics_outlined, color: Colors.green),
+            title: const Text('تقرير الأداء اليومي'),
+            subtitle: const Text('تحليل دقيق لإنجازاتك اليوم بناءً على الأرقام'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.dailyReport)));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.history_edu_outlined, color: Colors.orange),
+            title: const Text('المستشار العام (تقرير شامل)'),
+            subtitle: const Text('تحليل مسارك العام ونقاط قوتك وضعفك'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.generalReport)));
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
   }
 }

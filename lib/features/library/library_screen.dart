@@ -348,8 +348,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        isVideo 
-                          ? '${file.currentUnit} / ${file.totalUnits} دقيقة' 
+                        isVideo || isAudio
+                          ? '${(file.currentUnit / 60).floor()}:${(file.currentUnit % 60).toString().padLeft(2, '0')} / ${(file.totalUnits / 60).floor()}:${(file.totalUnits % 60).toString().padLeft(2, '0')} دقيقة' 
                           : 'صفحة ${file.currentUnit} من ${file.totalUnits}',
                         style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
@@ -363,7 +363,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       value: progress,
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade100,
-                      valueColor: AlwaysStoppedAnimation<Color>(isVideo ? Colors.blue : Colors.red),
+                      valueColor: AlwaysStoppedAnimation<Color>(isVideo ? Colors.blue : (isAudio ? Colors.orange : Colors.red)),
                     ),
                   ),
                 ],
@@ -558,7 +558,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   categoryId: _currentCategoryId ?? 'root',
                   addedAt: DateTime.now(),
                   type: widget.libraryType,
-                  totalUnits: total,
+                  totalUnits: (widget.libraryType == LibraryType.video || widget.libraryType == LibraryType.audio) ? total * 60 : total,
                 );
                 await LibraryService.saveFile(file);
                 Navigator.pop(context);
@@ -588,6 +588,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           builder: (context) => VideoPlayerScreen(
             filePaths: _files.map((f) => f.path).toList(),
             titles: _files.map((f) => f.name).toList(),
+            fileIds: _files.map((f) => f.id).toList(), // Pass file IDs
             initialIndex: index,
           ),
         ),
@@ -600,6 +601,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         builder: (context) => ModernAudioPlayer(
           audioPaths: _files.map((f) => f.path).toList(),
           titles: _files.map((f) => f.name).toList(),
+          fileIds: _files.map((f) => f.id).toList(), // Pass file IDs
           initialIndex: index,
         ),
       );
@@ -657,26 +659,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _showUpdateProgressDialog(LibraryFile file) {
-    final totalController = TextEditingController(text: file.totalUnits.toString());
-    final currentController = TextEditingController(text: file.currentUnit.toString());
-    bool isVideo = file.type == LibraryType.video;
+    bool isMedia = file.type == LibraryType.video || file.type == LibraryType.audio;
+    
+    final totalController = TextEditingController(
+      text: isMedia ? (file.totalUnits / 60).floor().toString() : file.totalUnits.toString()
+    );
+    final currentController = TextEditingController(
+      text: isMedia ? (file.currentUnit / 60).floor().toString() : file.currentUnit.toString()
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isVideo ? 'تحديث دقائق الفيديو' : 'تحديث صفحات الكتاب'),
+        title: Text(isMedia ? 'تحديث دقائق الملف' : 'تحديث صفحات الكتاب'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: totalController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: isVideo ? 'إجمالي الدقائق' : 'إجمالي الصفحات'),
+              decoration: InputDecoration(labelText: isMedia ? 'إجمالي الدقائق' : 'إجمالي الصفحات'),
             ),
             TextField(
               controller: currentController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: isVideo ? 'الدقائق التي شاهدتها' : 'الصفحة التي وصلت إليها'),
+              decoration: InputDecoration(labelText: isMedia ? 'الدقائق التي وصلت إليها' : 'الصفحة التي وصلت إليها'),
             ),
           ],
         ),
@@ -686,7 +693,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onPressed: () async {
               int total = int.tryParse(totalController.text) ?? 1;
               int current = int.tryParse(currentController.text) ?? 0;
-              final updated = file.copyWith(totalUnits: total, currentUnit: current);
+              
+              final updated = file.copyWith(
+                totalUnits: isMedia ? total * 60 : total,
+                currentUnit: isMedia ? current * 60 : current,
+              );
               await LibraryService.saveFile(updated);
               _loadData();
               Navigator.pop(context);
