@@ -27,7 +27,13 @@ class _SecretWithGodScreenState extends State<SecretWithGodScreen> with SingleTi
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _globalBlur = SecretService.getBlurSetting();
     checkFirstTimeHelp(context, 'secret_with_god');
+  }
+
+  void _toggleBlur() async {
+    setState(() => _globalBlur = !_globalBlur);
+    await SecretService.saveBlurSetting(_globalBlur);
   }
 
   @override
@@ -46,7 +52,7 @@ class _SecretWithGodScreenState extends State<SecretWithGodScreen> with SingleTi
           ),
           IconButton(
             icon: Icon(_globalBlur ? Icons.visibility_off : Icons.visibility),
-            onPressed: () => setState(() => _globalBlur = !_globalBlur),
+            onPressed: _toggleBlur,
             tooltip: 'إخفاء النصوص',
           ),
           TextButton(

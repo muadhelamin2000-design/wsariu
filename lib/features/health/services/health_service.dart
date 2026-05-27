@@ -5,23 +5,51 @@ import '../../profile/services/user_service.dart';
 class HealthService {
   static const String profileBox = 'health_profile_box';
   static const String foodBox = 'food_entries_box';
+  static const String foodTemplatesBox = 'food_templates_box';
   static const String exercisesBox = 'workout_exercises_box';
   static const String conditionsBox = 'chronic_conditions_box';
   static const String testsBox = 'lab_tests_box';
+  static const String patientProfileBox = 'patient_profiles_box';
 
   static Future<void> init() async {
     await Hive.openBox(profileBox);
     await Hive.openBox(foodBox);
+    await Hive.openBox(foodTemplatesBox);
     await Hive.openBox(exercisesBox);
     await Hive.openBox(conditionsBox);
     await Hive.openBox(testsBox);
+    await Hive.openBox(patientProfileBox);
   }
 
 
+  // --- Patient Profiles ---
+  static List<PatientProfile> getPatients() {
+    final box = Hive.box(patientProfileBox);
+    final String? userId = UserService.currentUser?.id;
+    if (userId == null) return [];
+    return box.values
+        .map((e) => PatientProfile.fromMap(Map<dynamic, dynamic>.from(e)))
+        .where((p) => p.userId == userId)
+        .toList();
+  }
+
+  static Future<void> savePatient(PatientProfile patient) async {
+    await Hive.box(patientProfileBox).put(patient.id, patient.toMap());
+  }
+
+  static Future<void> deletePatient(String id) async {
+    await Hive.box(patientProfileBox).delete(id);
+    // يمكن هنا حذف الحالات المرتبطة أيضاً
+  }
+
   // --- Chronic Conditions ---
-  static List<ChronicCondition> getConditions() {
+  static List<ChronicCondition> getConditions(String? patientId) {
     final box = Hive.box(conditionsBox);
-    return box.values.map((e) => ChronicCondition.fromMap(Map<dynamic, dynamic>.from(e))).toList();
+    var conditions = box.values.map((e) => ChronicCondition.fromMap(Map<dynamic, dynamic>.from(e)));
+    if (patientId != null) {
+      conditions = conditions.where((c) => c.patientId == patientId);
+    }
+    return conditions.toList();
   }
 
   static Future<void> saveCondition(ChronicCondition condition) async {
@@ -80,6 +108,81 @@ class HealthService {
   static Future<void> addFood(FoodEntry entry) async => await Hive.box(foodBox).put(entry.id, entry.toMap());
   static Future<void> deleteFood(String id) async => await Hive.box(foodBox).delete(id);
 
+  // --- Food Templates ---
+  static List<FoodTemplate> getFoodTemplates() {
+    final box = Hive.box(foodTemplatesBox);
+    final String? userId = UserService.currentUser?.id;
+    if (userId == null) return [];
+    return box.values
+        .map((e) => FoodTemplate.fromMap(Map<dynamic, dynamic>.from(e)))
+        .where((e) => e.userId == userId)
+        .toList();
+  }
+
+  static Future<void> saveFoodTemplate(FoodTemplate template) async {
+    await Hive.box(foodTemplatesBox).put(template.id, template.toMap());
+  }
+
+  static Future<void> deleteFoodTemplate(String id) async {
+    await Hive.box(foodTemplatesBox).delete(id);
+  }
+
+  // --- Calculations ---
+  static Map<String, double> calculateTargets(UserHealthProfile profile) {
+    double bmr;
+    if (profile.gender == Gender.male) {
+      bmr = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age + 5;
+    } else {
+      bmr = 10 * profile.weight + 6.25 * profile.height - 5 * profile.age - 161;
+    }
+
+    double activityFactor = 1.2;
+    switch (profile.activityLevel) {
+      case ActivityLevel.sedentary: activityFactor = 1.2; break;
+      case ActivityLevel.light: activityFactor = 1.375; break;
+      case ActivityLevel.moderate: activityFactor = 1.55; break;
+      case ActivityLevel.active: activityFactor = 1.725; break;
+      case ActivityLevel.veryActive: activityFactor = 1.9; break;
+    }
+
+    double tdee = bmr * activityFactor;
+    double targetCalories = tdee;
+    double proteinPerKg = 2.0;
+
+    switch (profile.goal) {
+      case HealthGoal.loseFat:
+        targetCalories = tdee - 500;
+        proteinPerKg = 2.2;
+        break;
+      case HealthGoal.cleanBulk:
+        targetCalories = tdee + 300;
+        proteinPerKg = 2.0;
+        break;
+      case HealthGoal.recomposition:
+        targetCalories = tdee;
+        proteinPerKg = 2.2;
+        break;
+      case HealthGoal.maintain:
+        targetCalories = tdee;
+        proteinPerKg = 1.8;
+        break;
+    }
+
+    double protein = profile.weight * proteinPerKg;
+    double fat = profile.weight * 0.8;
+    double proteinCalories = protein * 4;
+    double fatCalories = fat * 9;
+    double carbCalories = targetCalories - proteinCalories - fatCalories;
+    double carbs = carbCalories / 4;
+
+    return {
+      'calories': targetCalories,
+      'protein': protein,
+      'carbs': carbs,
+      'fats': fat,
+    };
+  }
+
   // --- Workout Exercises ---
   static List<WorkoutExercise> getExercises(WorkoutType? type) {
     final box = Hive.box(exercisesBox);
@@ -130,10 +233,8 @@ class HealthService {
       if (ex.completionLog[dateKey] == true) {
         if (ex.type == WorkoutType.cardio) {
           total += ex.caloriesBurned ?? 0;
-        } else {
-          // حرق تقريبي لتمارين المقاومة: 5 سعرات لكل مجموعة
-          total += (ex.sets ?? 0) * 5;
         }
+        // إزالة حساب تمارين المقاومة حسب طلب المستخدم
       }
     }
     return total;

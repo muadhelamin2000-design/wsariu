@@ -17,7 +17,8 @@ import '../features/worship/journal_screen.dart';
 import '../features/worship/secret_with_god_screen.dart';
 import '../features/worship/addiction_screen.dart';
 import '../features/worship/knowledge_screen.dart';
-import '../features/worship/quran_screen.dart';
+import '../features/worship/qiyam_tracker_screen.dart';
+import '../features/worship/seasons_screen.dart';
 import '../features/health/nutrition_screen.dart';
 import '../features/health/workout_screen.dart';
 import '../features/health/sleep_intelligence_screen.dart';
@@ -36,7 +37,6 @@ import '../features/library/pdf_viewer_screen.dart';
 import '../features/library/video_player_screen.dart';
 import '../features/library/models/library_models.dart';
 import '../features/browser/conscious_browser_screen.dart';
-import '../features/chat/ai_chat_screen.dart';
 
 class AppRouter {
   static String get initialLocation {
@@ -90,7 +90,8 @@ class AppRouter {
           GoRoute(path: 'sir-ma3-allah', builder: (context, state) => const SecretWithGodScreen()),
           GoRoute(path: 'awadho-allah', builder: (context, state) => const AddictionScreen()),
           GoRoute(path: 'hujja-li', builder: (context, state) => const KnowledgeScreen()),
-          GoRoute(path: 'quran', builder: (context, state) => const QuranScreen()),
+          GoRoute(path: 'qiyam', builder: (context, state) => const QiyamTrackerScreen()),
+          GoRoute(path: 'seasons', builder: (context, state) => const SeasonsScreen()),
         ],
       ),
       // 3. الجانب البدني (physical)
@@ -165,10 +166,6 @@ class AppRouter {
           final extra = state.extra as Map<String, dynamic>?;
           return ConsciousBrowserScreen(initialUrl: extra?['url']);
         },
-      ),
-      GoRoute(
-        path: '/ai-chat',
-        builder: (context, state) => const AIChatScreen(),
       ),
     ],
   );

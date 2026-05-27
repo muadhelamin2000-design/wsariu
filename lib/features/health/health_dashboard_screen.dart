@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:uuid/uuid.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../../core/app_theme.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/widgets/modern_dialog.dart';
 import 'models/health_models.dart';
 import 'services/health_service.dart';
+import '../discipline/services/notification_service.dart';
 
 class HealthDashboardScreen extends StatefulWidget {
   const HealthDashboardScreen({super.key});
@@ -16,20 +19,68 @@ class HealthDashboardScreen extends StatefulWidget {
 }
 
 class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
-  List<ChronicCondition> _conditions = [];
-  List<GradualLabTest> _labTests = [];
+  List<PatientProfile> _patients = [];
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _checkAndResetMedicines();
   }
 
   void _loadData() {
     setState(() {
-      _conditions = HealthService.getConditions();
-      _labTests = HealthService.getLabTests(null);
+      _patients = HealthService.getPatients();
     });
+  }
+
+  void _checkAndResetMedicines() async {
+    final allConditions = HealthService.getConditions(null);
+    final now = DateTime.now();
+    bool changed = false;
+
+    for (var condition in allConditions) {
+      final updatedMedicines = <Medicine>[];
+      bool conditionChanged = false;
+
+      for (var m in condition.medicines) {
+        bool shouldReset = false;
+        if (m.status == MedicineStatus.taken && m.lastTakenAt != null) {
+          if (m.remindType == MedicineRemindType.fixed) {
+            final lastReset = DateTime(m.lastTakenAt!.year, m.lastTakenAt!.month, m.lastTakenAt!.day, 4);
+            final nextReset = lastReset.add(const Duration(days: 1));
+            if (now.isAfter(nextReset)) shouldReset = true;
+          } else {
+            final intervalHours = 24 / m.frequencyPerDay;
+            final nextDose = m.lastTakenAt!.add(Duration(minutes: (intervalHours * 60).toInt()));
+            if (now.isAfter(nextDose)) shouldReset = true;
+          }
+        }
+
+        if (shouldReset) {
+          updatedMedicines.add(m.copyWith(status: MedicineStatus.pending));
+          conditionChanged = true;
+        } else {
+          updatedMedicines.add(m);
+        }
+      }
+
+      if (conditionChanged) {
+        await HealthService.saveCondition(ChronicCondition(
+          id: condition.id,
+          patientId: condition.patientId,
+          personName: condition.personName,
+          conditionName: condition.conditionName,
+          weight: condition.weight,
+          height: condition.height,
+          medicines: updatedMedicines,
+          sideEffects: condition.sideEffects,
+          notes: condition.notes,
+        ));
+        changed = true;
+      }
+    }
+    if (changed) _loadData();
   }
 
   @override
@@ -39,27 +90,24 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('رعاية 🛡️', style: TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold)),
+        title: const Text('رعاية وشفاء 🛡️', style: TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold)),
         elevation: 0,
-        backgroundColor: Colors.transparent,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildSectionHeader('الأمراض المزمنة والمتابعة', 'إضافة حالة', () => _showAddConditionDialog()),
+          _buildSectionHeader('سجلات المرضى', 'إضافة مريض', () => _showAddPatientDialog()),
           const SizedBox(height: 16),
-          if (_conditions.isEmpty) 
-            const Center(child: Text('لا توجد حالات مضافة', style: TextStyle(color: Colors.grey)))
+          if (_patients.isEmpty) 
+            const Center(child: Text('لا توجد سجلات مضافة', style: TextStyle(color: Colors.grey)))
           else
-            ..._conditions.map((c) => _buildConditionCard(c, isDark)),
-          
-          const SizedBox(height: 32),
-          _buildSectionHeader('التحاليل المتدرجة 🧪', 'جدولة جديد', () => _showAddLabTestDialog()),
-          const SizedBox(height: 16),
-          if (_labTests.isEmpty)
-             const Center(child: Text('لا توجد تحاليل مجدولة', style: TextStyle(color: Colors.grey)))
-          else
-            ..._labTests.map((t) => _buildLabTestCard(t, isDark)),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.85),
+              itemCount: _patients.length,
+              itemBuilder: (context, index) => _buildPatientCard(_patients[index], isDark),
+            ),
           const SizedBox(height: 40),
         ],
       ),
@@ -76,430 +124,360 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
     );
   }
 
-  Widget _buildConditionCard(ChronicCondition condition, bool isDark) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.darkCard : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15)],
-      ),
-      child: ExpansionTile(
-        title: Text(condition.conditionName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-        subtitle: Text('المريض: ${condition.personName} • الوزن: ${condition.weight ?? "-"} • الطول: ${condition.height ?? "-"}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildPatientCard(PatientProfile patient, bool isDark) {
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PatientDetailsScreen(patient: patient))),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkCard : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            IconButton(icon: const Icon(Icons.edit_outlined, size: 18), onPressed: () => _showAddConditionDialog(condition: condition)),
-            const Icon(Icons.expand_more),
+            CircleAvatar(
+              radius: 35,
+              backgroundColor: Colors.blue.withOpacity(0.1),
+              backgroundImage: patient.imagePath != null ? FileImage(File(patient.imagePath!)) : null,
+              child: patient.imagePath == null ? const Icon(Icons.person, size: 35, color: Colors.blue) : null,
+            ),
+            const SizedBox(height: 12),
+            Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('${patient.age ?? "?"} سنة', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+              child: const Text('عرض السجل', style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAddPatientDialog() async {
+    final nameController = TextEditingController();
+    final ageController = TextEditingController();
+    String? imagePath;
+
+    ModernDialog.show(
+      context: context,
+      title: 'إضافة ملف مريض',
+      content: StatefulBuilder(
+        builder: (context, setModalState) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () async {
+                final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+                if (picked != null) setModalState(() => imagePath = picked.path);
+              },
+              child: CircleAvatar(
+                radius: 30,
+                backgroundImage: imagePath != null ? FileImage(File(imagePath!)) : null,
+                child: imagePath == null ? const Icon(Icons.camera_alt) : null,
+              ),
+            ),
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم المريض')),
+            TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'العمر')),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(
+          onPressed: () async {
+            if (nameController.text.isNotEmpty) {
+              final patient = PatientProfile(
+                id: const Uuid().v4(),
+                userId: HealthService.getProfile()?.userId ?? 'default',
+                name: nameController.text,
+                age: int.tryParse(ageController.text),
+                imagePath: imagePath,
+              );
+              await HealthService.savePatient(patient);
+              Navigator.pop(context);
+              _loadData();
+            }
+          },
+          child: const Text('حفظ'),
+        ),
+      ],
+    );
+  }
+}
+
+class PatientDetailsScreen extends StatefulWidget {
+  final PatientProfile patient;
+  const PatientDetailsScreen({super.key, required this.patient});
+
+  @override
+  State<PatientDetailsScreen> createState() => _PatientDetailsScreenState();
+}
+
+class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
+  List<ChronicCondition> _conditions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    setState(() {
+      _conditions = HealthService.getConditions(widget.patient.id);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = ThemeService.isDarkMode;
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.patient.name)),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildInfoBar(isDark),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('الأمراض والحالات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              TextButton(onPressed: _showAddConditionDialog, child: const Text('إضافة حالة')),
+            ],
+          ),
+          if (_conditions.isEmpty)
+            const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('لا توجد حالات مسجلة', style: TextStyle(color: Colors.grey))))
+          else
+            ..._conditions.map((c) => _buildConditionCard(c, isDark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.blue.withOpacity(0.05), borderRadius: BorderRadius.circular(24)),
+      child: Row(
+        children: [
+          CircleAvatar(radius: 30, backgroundImage: widget.patient.imagePath != null ? FileImage(File(widget.patient.imagePath!)) : null),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('العمر: ${widget.patient.age ?? "?"} | الوزن: ${widget.patient.weight ?? "?"} كجم', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConditionCard(ChronicCondition condition, bool isDark) {
+    final tests = HealthService.getLabTests(condition.id);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ExpansionTile(
+        title: Text(condition.conditionName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('الأدوية والمواعيد:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ...condition.medicines.map((m) => _buildMedicineRow(condition, m)),
+                TextButton(onPressed: () => _showAddMedicineDialog(condition), child: const Text('+ إضافة دواء', style: TextStyle(fontSize: 11))),
+                const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('الأدوية الحالية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    TextButton(onPressed: () => _showAddMedicineDialog(condition), child: const Text('إضافة دواء', style: TextStyle(fontSize: 11))),
+                    const Text('التحاليل والتطور:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    TextButton(onPressed: () => _showAddLabTestDialog(condition.id), child: const Text('+ جدولة تحليل', style: TextStyle(fontSize: 11))),
                   ],
                 ),
-                ...condition.medicines.map((m) => _buildMedicineMiniRow(condition, m)),
-                const Divider(height: 24),
-                const Text('أعراض جانبية للمراقبة ⚠️:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.orange)),
-                Wrap(
-                  spacing: 8,
-                  children: condition.sideEffects.map((se) => Chip(
-                    label: Text(se, style: const TextStyle(fontSize: 10)),
-                    backgroundColor: Colors.orange.withOpacity(0.1),
-                  )).toList(),
-                ),
-                if (condition.notes.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text('ملاحظات: ${condition.notes}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                ],
+                ...tests.map((t) => _buildTestMiniCard(t)),
                 const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: () => _confirmDeleteCondition(condition),
-                    child: const Text('حذف الحالة نهائياً', style: TextStyle(color: Colors.red, fontSize: 11)),
-                  ),
-                ),
+                Center(child: TextButton(onPressed: () => _deleteCondition(condition), child: const Text('حذف الحالة', style: TextStyle(color: Colors.red, fontSize: 11)))),
               ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildMedicineMiniRow(ChronicCondition condition, Medicine m) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          const Icon(Icons.medication, size: 16, color: Colors.blue),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(m.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                Text('${m.dose} • ${m.instruction} • ${m.time.format(context)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              ],
-            ),
-          ),
-          IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showAddMedicineDialog(condition, medicine: m)),
-          IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red), onPressed: () => _deleteMedicine(condition, m)),
-          Checkbox(
-            value: m.status == MedicineStatus.taken, 
-            onChanged: (v) {
-              setState(() {
-                m.status = v! ? MedicineStatus.taken : MedicineStatus.pending;
-                HealthService.saveCondition(condition);
-              });
-            },
-          ),
-        ],
+  Widget _buildMedicineRow(ChronicCondition condition, Medicine m) {
+    String timeText = m.remindType == MedicineRemindType.fixed ? m.time.format(context) : 'كل ${24 ~/ m.frequencyPerDay} ساعات';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.medication, size: 20, color: Colors.blue),
+      title: Text(m.name, style: const TextStyle(fontSize: 13)),
+      subtitle: Text('${m.dose} • $timeText', style: const TextStyle(fontSize: 10)),
+      trailing: Checkbox(
+        value: m.status == MedicineStatus.taken,
+        onChanged: (v) async {
+          final updatedMed = m.copyWith(status: v! ? MedicineStatus.taken : MedicineStatus.pending, lastTakenAt: v ? DateTime.now() : null);
+          final meds = List<Medicine>.from(condition.medicines);
+          meds[meds.indexWhere((item) => item.id == m.id)] = updatedMed;
+          await HealthService.saveCondition(ChronicCondition(
+            id: condition.id, patientId: condition.patientId, personName: condition.personName,
+            conditionName: condition.conditionName, medicines: meds, notes: condition.notes,
+          ));
+          if (v && updatedMed.remindType == MedicineRemindType.interval) {
+             final nextTime = DateTime.now().add(Duration(minutes: (24 / updatedMed.frequencyPerDay * 60).toInt()));
+             await NotificationService.scheduleNotification(id: updatedMed.id.hashCode.abs(), title: '⏰ موعد دواء: ${updatedMed.name}', body: 'حان موعد جرعة ${updatedMed.dose}', time: nextTime);
+          }
+          _loadData();
+        },
       ),
     );
   }
 
-  Widget _buildLabTestCard(GradualLabTest test, bool isDark) {
-    final nextDate = test.nextTestDate;
-    final daysLeft = nextDate.difference(DateTime.now()).inDays;
-
+  Widget _buildTestMiniCard(GradualLabTest test) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [Colors.indigo.shade900, Colors.indigo.shade700]),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.blue.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(test.testName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              Row(
-                children: [
-                  IconButton(icon: const Icon(Icons.add_chart, color: Colors.white, size: 20), onPressed: () => _showAddLabResultDialog(test)),
-                  IconButton(icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 20), onPressed: () => _deleteLabTest(test)),
-                ],
-              ),
+              Text(test.testName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              IconButton(icon: const Icon(Icons.add_chart, size: 16), onPressed: () => _showAddLabResultDialog(test)),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                child: Text('المرحلة ${test.currentIntervalIndex + 1}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-              ),
-              const Spacer(),
-              Text(
-                daysLeft <= 0 ? 'موعد التحليل اليوم!' : 'باقي $daysLeft يوم',
-                style: TextStyle(color: daysLeft <= 0 ? Colors.redAccent : Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (test.results.isNotEmpty) ...[
-            const Text('تطور النتائج:', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+          if (test.results.isNotEmpty)
             SizedBox(
-              height: 120,
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: false),
-                  titlesData: const FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: test.results.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value)).toList(),
-                      isCurved: true,
-                      color: Colors.cyanAccent,
-                      barWidth: 3,
-                      dotData: const FlDotData(show: true),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text('آخر نتيجة: ${test.results.last.value} (${intl.DateFormat('MM/dd').format(test.results.last.date)})', style: const TextStyle(color: Colors.white, fontSize: 10)),
-          ],
-          const SizedBox(height: 12),
-          Text('السبب: ${test.reason}', style: const TextStyle(color: Colors.white60, fontSize: 11)),
-          const SizedBox(height: 20),
-          _buildProgressStepper(test.currentIntervalIndex, test.intervalsInDays.length),
-          if (daysLeft <= 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    test.currentIntervalIndex++;
-                    HealthService.saveLabTest(test);
-                  });
-                },
-                child: const Text('تم إجراء التحليل - انتقل للمرحلة التالية'),
-              ),
+              height: 60,
+              child: LineChart(LineChartData(
+                gridData: const FlGridData(show: false), titlesData: const FlTitlesData(show: false), borderData: FlBorderData(show: false),
+                lineBarsData: [LineChartBarData(spots: test.results.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.value)).toList(), isCurved: true, color: Colors.blue, barWidth: 2)],
+              )),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildProgressStepper(int current, int total) {
-    return Row(
-      children: List.generate(total, (index) => Expanded(
-        child: Container(
-          height: 4,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: index <= current ? Colors.white : Colors.white24,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      )),
-    );
-  }
-
-  // --- Dialogs ---
-
-  void _showAddConditionDialog({ChronicCondition? condition}) async {
-    final nameController = TextEditingController(text: condition?.conditionName);
-    final personController = TextEditingController(text: condition?.personName);
-    final weightController = TextEditingController(text: condition?.weight?.toString());
-    final heightController = TextEditingController(text: condition?.height?.toString());
-    final notesController = TextEditingController(text: condition?.notes);
-
+  void _showAddConditionDialog() {
+    final nameController = TextEditingController();
     ModernDialog.show(
       context: context,
-      title: condition == null ? 'إضافة حالة مرضية' : 'تعديل الحالة',
-      content: SingleChildScrollView(
-        child: Column(
-          children: [
-            TextField(controller: personController, decoration: const InputDecoration(labelText: 'اسم المريض')),
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'الحالة المرضية (مثل: صدفية)')),
-            Row(
-              children: [
-                Expanded(child: TextField(controller: weightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الوزن (كجم)'))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: heightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الطول (سم)'))),
-              ],
-            ),
-            TextField(controller: notesController, decoration: const InputDecoration(labelText: 'ملاحظات إضافية')),
-          ],
-        ),
-      ),
+      title: 'إضافة حالة للمريض',
+      content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم الحالة')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        ElevatedButton(
-          onPressed: () async {
-            if (nameController.text.isNotEmpty && personController.text.isNotEmpty) {
-              final newCondition = ChronicCondition(
-                id: condition?.id ?? const Uuid().v4(),
-                personName: personController.text,
-                conditionName: nameController.text,
-                weight: double.tryParse(weightController.text),
-                height: double.tryParse(heightController.text),
-                notes: notesController.text,
-                medicines: condition?.medicines ?? [],
-                sideEffects: condition?.sideEffects ?? [],
-              );
-              await HealthService.saveCondition(newCondition);
-              Navigator.pop(context);
-              _loadData();
-            }
-          },
-          child: const Text('حفظ'),
-        ),
+        ElevatedButton(onPressed: () async {
+          if (nameController.text.isNotEmpty) {
+            final c = ChronicCondition(id: const Uuid().v4(), patientId: widget.patient.id, personName: widget.patient.name, conditionName: nameController.text);
+            await HealthService.saveCondition(c);
+            Navigator.pop(context);
+            _loadData();
+          }
+        }, child: const Text('حفظ')),
       ],
     );
   }
 
-  void _showAddMedicineDialog(ChronicCondition condition, {Medicine? medicine}) async {
-    final nameController = TextEditingController(text: medicine?.name);
-    final doseController = TextEditingController(text: medicine?.dose);
-    final instrController = TextEditingController(text: medicine?.instruction);
-    TimeOfDay time = medicine?.time ?? TimeOfDay.now();
+  void _showAddMedicineDialog(ChronicCondition condition) {
+    final nameController = TextEditingController();
+    final doseController = TextEditingController();
+    final freqController = TextEditingController(text: '1');
+    TimeOfDay time = TimeOfDay.now();
+    MedicineRemindType remindType = MedicineRemindType.fixed;
 
     ModernDialog.show(
       context: context,
-      title: medicine == null ? 'إضافة دواء' : 'تعديل دواء',
+      title: 'إضافة دواء',
       content: StatefulBuilder(
         builder: (context, setModalState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم الدواء')),
-            TextField(controller: doseController, decoration: const InputDecoration(labelText: 'الجرعة (مثل: حبة واحدة)')),
-            TextField(controller: instrController, decoration: const InputDecoration(labelText: 'طريقة الاستخدام (مثل: بعد الغداء)')),
-            ListTile(
-              title: Text('موعد الدواء: ${time.format(context)}'),
-              trailing: const Icon(Icons.access_time),
-              onTap: () async {
-                final picked = await showTimePicker(context: context, initialTime: time);
-                if (picked != null) setModalState(() => time = picked);
-              },
+            TextField(controller: doseController, decoration: const InputDecoration(labelText: 'الجرعة')),
+            DropdownButtonFormField<MedicineRemindType>(
+              value: remindType,
+              items: const [DropdownMenuItem(value: MedicineRemindType.fixed, child: Text('وقت ثابت')), DropdownMenuItem(value: MedicineRemindType.interval, child: Text('تكرار يومي'))],
+              onChanged: (v) => setModalState(() => remindType = v!),
+              decoration: const InputDecoration(labelText: 'النوع'),
             ),
+            if (remindType == MedicineRemindType.fixed)
+              ListTile(title: Text('الموعد: ${time.format(context)}'), trailing: const Icon(Icons.access_time), onTap: () async {
+                final p = await showTimePicker(context: context, initialTime: time);
+                if (p != null) setModalState(() => time = p);
+              })
+            else
+              TextField(controller: freqController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات في اليوم')),
           ],
         ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        ElevatedButton(
-          onPressed: () async {
-            if (nameController.text.isNotEmpty) {
-              final newMed = Medicine(
-                id: medicine?.id ?? const Uuid().v4(),
-                name: nameController.text,
-                dose: doseController.text,
-                instruction: instrController.text,
-                hour: time.hour,
-                minute: time.minute,
-                status: medicine?.status ?? MedicineStatus.pending,
-              );
-
-              final updatedMedicines = List<Medicine>.from(condition.medicines);
-              if (medicine != null) {
-                final idx = updatedMedicines.indexWhere((m) => m.id == medicine.id);
-                updatedMedicines[idx] = newMed;
-              } else {
-                updatedMedicines.add(newMed);
-              }
-
-              await HealthService.saveCondition(ChronicCondition(
-                id: condition.id,
-                personName: condition.personName,
-                conditionName: condition.conditionName,
-                weight: condition.weight,
-                height: condition.height,
-                medicines: updatedMedicines,
-                sideEffects: condition.sideEffects,
-                notes: condition.notes,
-              ));
-
-              Navigator.pop(context);
-              _loadData();
+        ElevatedButton(onPressed: () async {
+          if (nameController.text.isNotEmpty) {
+            final m = Medicine(id: const Uuid().v4(), name: nameController.text, dose: doseController.text, hour: time.hour, minute: time.minute, frequencyPerDay: int.tryParse(freqController.text) ?? 1, remindType: remindType);
+            final meds = List<Medicine>.from(condition.medicines)..add(m);
+            await HealthService.saveCondition(ChronicCondition(id: condition.id, patientId: condition.patientId, personName: condition.personName, conditionName: condition.conditionName, medicines: meds));
+            if (remindType == MedicineRemindType.fixed) {
+               await NotificationService.scheduleNotification(id: m.id.hashCode.abs(), title: '⏰ دواء: ${m.name}', body: 'جرعة ${m.dose}', time: TimeOfDay(hour: m.hour, minute: m.minute));
             }
-          },
-          child: const Text('حفظ'),
-        ),
+            Navigator.pop(context);
+            _loadData();
+          }
+        }, child: const Text('حفظ')),
       ],
     );
   }
 
-  void _showAddLabTestDialog() async {
+  void _showAddLabTestDialog(String conditionId) {
     final nameController = TextEditingController();
-    final reasonController = TextEditingController();
-    final intervalsController = TextEditingController(text: '3, 7, 14, 30, 90, 180');
-
     ModernDialog.show(
       context: context,
-      title: 'جدولة تحليل متدرج',
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم التحليل (مثل: وظائف كبد)')),
-          TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'سبب المتابعة')),
-          TextField(controller: intervalsController, decoration: const InputDecoration(labelText: 'تدرج الأيام (مفصولة بفاصلة)', hintText: '3, 7, 14...')),
-        ],
-      ),
+      title: 'جدولة تحليل',
+      content: TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم التحليل')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        ElevatedButton(
-          onPressed: () async {
-            if (nameController.text.isNotEmpty) {
-              final intervals = intervalsController.text.split(',').map((e) => int.tryParse(e.trim()) ?? 0).where((e) => e > 0).toList();
-              final test = GradualLabTest(
-                id: const Uuid().v4(),
-                conditionId: '',
-                testName: nameController.text,
-                reason: reasonController.text,
-                startDate: DateTime.now(),
-                intervalsInDays: intervals.isEmpty ? [3, 7, 14, 30, 90, 180] : intervals,
-              );
-              await HealthService.saveLabTest(test);
-              Navigator.pop(context);
-              _loadData();
-            }
-          },
-          child: const Text('جدولة'),
-        ),
+        ElevatedButton(onPressed: () async {
+          if (nameController.text.isNotEmpty) {
+            await HealthService.saveLabTest(GradualLabTest(id: const Uuid().v4(), conditionId: conditionId, testName: nameController.text, startDate: DateTime.now()));
+            Navigator.pop(context);
+            _loadData();
+          }
+        }, child: const Text('جدولة')),
       ],
     );
   }
 
-  void _showAddLabResultDialog(GradualLabTest test) async {
+  void _showAddLabResultDialog(GradualLabTest test) {
     final valController = TextEditingController();
-
     ModernDialog.show(
       context: context,
-      title: 'تسجيل نتيجة تحليل',
-      content: TextField(controller: valController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الرقم الناتج من التحليل')),
+      title: 'تسجيل نتيجة',
+      content: TextField(controller: valController, keyboardType: TextInputType.number),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-        ElevatedButton(
-          onPressed: () async {
-            if (valController.text.isNotEmpty) {
-              final val = double.tryParse(valController.text) ?? 0;
-              final results = List<LabResult>.from(test.results);
-              results.add(LabResult(date: DateTime.now(), value: val));
-              
-              await HealthService.saveLabTest(GradualLabTest(
-                id: test.id,
-                conditionId: test.conditionId,
-                testName: test.testName,
-                startDate: test.startDate,
-                intervalsInDays: test.intervalsInDays,
-                currentIntervalIndex: test.currentIntervalIndex,
-                reason: test.reason,
-                results: results,
-              ));
-
-              Navigator.pop(context);
-              _loadData();
-            }
-          },
-          child: const Text('حفظ'),
-        ),
+        ElevatedButton(onPressed: () async {
+          if (valController.text.isNotEmpty) {
+            final results = List<LabResult>.from(test.results)..add(LabResult(date: DateTime.now(), value: double.parse(valController.text)));
+            await HealthService.saveLabTest(GradualLabTest(id: test.id, conditionId: test.conditionId, testName: test.testName, startDate: test.startDate, results: results));
+            Navigator.pop(context);
+            _loadData();
+          }
+        }, child: const Text('حفظ')),
       ],
     );
   }
 
-  void _deleteMedicine(ChronicCondition condition, Medicine m) async {
-    final updated = condition.medicines.where((med) => med.id != m.id).toList();
-    await HealthService.saveCondition(ChronicCondition(
-      id: condition.id,
-      personName: condition.personName,
-      conditionName: condition.conditionName,
-      weight: condition.weight,
-      height: condition.height,
-      medicines: updated,
-      sideEffects: condition.sideEffects,
-      notes: condition.notes,
-    ));
-    _loadData();
-  }
-
-  void _confirmDeleteCondition(ChronicCondition c) async {
-    final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف الحالة', message: 'هل أنت متأكد من حذف ${c.conditionName}؟ سيتم حذف كافة الأدوية المرتبطة بها.');
-    if (confirm == true) {
-      await HealthService.deleteCondition(c.id);
-      _loadData();
-    }
-  }
-
-  void _deleteLabTest(GradualLabTest test) async {
-     await HealthService.deleteLabTest(test.id);
-     _loadData();
+  void _deleteCondition(ChronicCondition c) async {
+    final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف', message: 'حذف الحالة؟');
+    if (confirm == true) { await HealthService.deleteCondition(c.id); _loadData(); }
   }
 }

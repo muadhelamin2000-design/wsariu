@@ -171,6 +171,7 @@ class HabitService {
         final updatedHabit = habit.copyWith(
           completionLog: {},
           createdAt: now,
+          challengeStartDate: null, // يعود لحالة لم يبدأ
         );
         await box.put(habit.id, updatedHabit.toMap());
       }
@@ -186,6 +187,7 @@ class HabitService {
       final updatedHabit = habit.copyWith(
         completionLog: {},
         createdAt: DateTime.now(),
+        challengeStartDate: null, // يعود لحالة لم يبدأ
       );
       await box.put(id, updatedHabit.toMap());
       WidgetService.updateAllWidgets();

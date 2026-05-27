@@ -206,6 +206,7 @@ class FinanceTransaction {
   final FinanceType type;
   final String category;
   final String description;
+  final List<String> details; // New: List of itemized details "Item: Price"
   final DateTime date;
   final bool isSettled;
   final Proximity proximity;
@@ -217,6 +218,7 @@ class FinanceTransaction {
     required this.type,
     required this.category,
     required this.description,
+    this.details = const [],
     required this.date,
     this.isSettled = true,
     this.proximity = Proximity.near,
@@ -229,6 +231,7 @@ class FinanceTransaction {
     'type': type.index,
     'category': category,
     'description': description,
+    'details': details,
     'date': date.toIso8601String(),
     'isSettled': isSettled,
     'proximity': proximity.index,
@@ -241,6 +244,7 @@ class FinanceTransaction {
     type: FinanceType.values[map['type'] ?? 1],
     category: map['category'] ?? '',
     description: map['description'] ?? '',
+    details: List<String>.from(map['details'] ?? []),
     date: DateTime.parse(map['date']),
     isSettled: map['isSettled'] ?? true,
     proximity: Proximity.values[map['proximity'] ?? 0],
@@ -252,6 +256,7 @@ class FinanceTransaction {
     FinanceType? type,
     String? category,
     String? description,
+    List<String>? details,
     DateTime? date,
     bool? isSettled,
     Proximity? proximity,
@@ -263,6 +268,7 @@ class FinanceTransaction {
       type: type ?? this.type,
       category: category ?? this.category,
       description: description ?? this.description,
+      details: details ?? this.details,
       date: date ?? this.date,
       isSettled: isSettled ?? this.isSettled,
       proximity: proximity ?? this.proximity,

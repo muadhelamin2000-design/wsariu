@@ -74,4 +74,14 @@ class SleepService {
     if (userId == null) return;
     await box.put('settings_$userId', settings);
   }
+
+  static Future<void> resetHabitsSelection() async {
+    final settings = getSettings();
+    final List habits = settings['allHabits'] ?? [];
+    for (var h in habits) {
+      h['selected'] = false;
+    }
+    settings['allHabits'] = habits;
+    await saveSettings(settings);
+  }
 }

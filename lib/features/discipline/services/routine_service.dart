@@ -70,6 +70,7 @@ class RoutineService {
         final updated = r.copyWith(
           executionLog: {},
           createdAt: now,
+          challengeStartDate: null, // يعود لحالة لم يبدأ
         );
         await box.put(r.id, updated.toMap());
       }
@@ -137,7 +138,11 @@ class RoutineService {
     final routineMap = box.get(id);
     if (routineMap != null) {
       final routine = Routine.fromMap(Map<dynamic, dynamic>.from(routineMap));
-      final updatedRoutine = routine.copyWith(executionLog: {});
+      final updatedRoutine = routine.copyWith(
+        executionLog: {},
+        createdAt: DateTime.now(),
+        challengeStartDate: null, // يعود لحالة لم يبدأ
+      );
       await box.put(id, updatedRoutine.toMap());
       WidgetService.updateAllWidgets();
     }

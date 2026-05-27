@@ -34,9 +34,21 @@ class JournalService {
     if (currentUserId == null) return [];
 
     return box.values
-        .map((e) => JournalEntry.fromMap(Map<dynamic, dynamic>.from(e)))
+        .where((v) => v is Map && v.containsKey('id'))
+        .map((e) => JournalEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)))
         .where((e) => e.userId == currentUserId)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
+  }
+
+  // --- Settings ---
+  static bool getBlurSetting() {
+    final box = Hive.box(boxName);
+    return box.get('is_blurred', defaultValue: false);
+  }
+
+  static Future<void> saveBlurSetting(bool isBlurred) async {
+    final box = Hive.box(boxName);
+    await box.put('is_blurred', isBlurred);
   }
 }

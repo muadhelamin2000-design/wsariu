@@ -135,6 +135,7 @@ class WorshipService {
         final updated = item.copyWith(
           completionLog: {},
           createdAt: now,
+          challengeStartDate: null, // يعود لحالة لم يبدأ
         );
         await box.put(item.id, updated.toMap());
       }
@@ -149,6 +150,7 @@ class WorshipService {
       final updated = item.copyWith(
         completionLog: {},
         createdAt: DateTime.now(),
+        challengeStartDate: null, // يعود لحالة لم يبدأ
       );
       await box.put(id, updated.toMap());
     }

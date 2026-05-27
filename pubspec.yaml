@@ -38,14 +38,15 @@ dependencies:
   get_it: ^9.2.1
   riverpod: ^2.4.0
   flutter_riverpod: ^2.4.0
-  encrypt: ^5.0.3 # تحديث للإصدار المتوافق مع Null Safety و Dart 3
+  encrypt: ^5.0.3 
   local_auth: ^3.0.1
-  webview_flutter: ^4.10.0 # إضافة المتصفح المدمج
-  flutter_secure_storage: ^10.3.0 # لتخزين مفاتيح التشفير بشكل آمن
-  dio: ^5.7.0 # للتحميل من المتصفح
-  youtube_explode_dart: ^3.1.0 # لتحميل فيديوهات يوتيوب
-  just_audio_background: ^0.0.1-beta.13 # لتشغيل الصوتيات في الخلفية
-  usage_stats: ^1.3.1 # لتتبع استخدام الهاتف الحقيقي
+  webview_flutter: ^4.10.0 
+  flutter_secure_storage: ^10.3.0 
+  dio: ^5.7.0 
+  youtube_explode_dart: ^3.1.0 
+  just_audio_background: ^0.0.1-beta.13 
+  usage_stats: ^1.3.1 
+  google_generative_ai: ^0.4.5 # إضافة محرك Gemini AI
 
 dev_dependencies:
   flutter_test:
@@ -56,42 +57,39 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.2
   flutter_native_splash: ^2.4.3
 
-# 🔥 إعداد الأيقونة
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon.png"
   min_sdk_android: 21
 
-# 🔥 إعداد شاشة البداية (Splash)
 flutter_native_splash:
-  color: "#070B14" # نفس لون خلفية الأنيميشن تماماً
+  color: "#070B14" 
   fullscreen: true
 
 flutter:
   uses-material-design: true
   generate: true
 
-  # 📁 ربط الصور
   assets:
     - assets/icon.png
     - assets/videos/splash_video.mp4
-    - assets/json/quran.json
-    # - assets/fonts/ # أضف المجلد هنا بعد وضع ملفات الخطوط داخله
+    - assets/json/metadata.json
+    - assets/json/surah/
 
-  # لتعريف الخطوط أوفلاين، قم بتحميل ملفات الـ ttf ووضعها في assets/fonts
-  # ثم قم بإزالة التعليق عن الأسطر التالية:
-  # fonts:
-  #   - family: Amiri
-  #     fonts:
-  #       - asset: assets/fonts/Amiri-Regular.ttf
-  #       - asset: assets/fonts/Amiri-Bold.ttf
-  #         weight: 700
-  #   - family: NotoKufiArabic
-  #     fonts:
-  #       - asset: assets/fonts/NotoKufiArabic-Regular.ttf
-  #       - asset: assets/fonts/NotoKufiArabic-Bold.ttf
-  #         weight: 700
-  #   - family: JetBrainsMono
-  #     fonts:
-  #       - asset: assets/fonts/JetBrainsMono-Regular.ttf
+  fonts:
+    - family: uthman
+      fonts:
+        - asset: assets/fonts/uthman.ttf
+    - family: surah-name-v1
+      fonts:
+        - asset: assets/fonts/surah-name-v1.ttf
+    - family: surah-name-v2
+      fonts:
+        - asset: assets/fonts/surah-name-v2.ttf
+    - family: surah-header
+      fonts:
+        - asset: assets/fonts/surah-header.ttf
+    - family: juz-name
+      fonts:
+        - asset: assets/fonts/juz-name.ttf

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'models/journal_model.dart';
@@ -17,6 +18,7 @@ class JournalScreen extends StatefulWidget {
 
 class _JournalScreenState extends State<JournalScreen> with HelpFeatureMixin {
   DateTime _selectedDate = DateTime.now();
+  bool _isBlurred = false; // New
   
   List<JournalItem> _blessings = [];
   List<MistakeWithEffect> _sinsWithEffects = [];
@@ -30,8 +32,14 @@ class _JournalScreenState extends State<JournalScreen> with HelpFeatureMixin {
   @override
   void initState() {
     super.initState();
+    _isBlurred = JournalService.getBlurSetting(); // New
     _loadEntry();
     checkFirstTimeHelp(context, 'journal');
+  }
+
+  void _toggleBlur() async {
+    setState(() => _isBlurred = !_isBlurred);
+    await JournalService.saveBlurSetting(_isBlurred);
   }
 
   void _loadEntry() {
@@ -81,6 +89,11 @@ class _JournalScreenState extends State<JournalScreen> with HelpFeatureMixin {
             pageId: 'journal',
           ),
           IconButton(
+            icon: Icon(_isBlurred ? Icons.visibility_off : Icons.visibility),
+            onPressed: _toggleBlur,
+            tooltip: 'إخفاء النصوص',
+          ),
+          IconButton(
             icon: const Icon(Icons.calendar_month),
             onPressed: () async {
               final date = await showDatePicker(
@@ -98,47 +111,50 @@ class _JournalScreenState extends State<JournalScreen> with HelpFeatureMixin {
           TextButton(onPressed: _saveEntry, child: const Text('حفظ', style: TextStyle(color: Color(0xFFC8A24A), fontWeight: FontWeight.bold))),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            QuickLinkNavigator(currentPageId: 'journal'),
-            _buildSummaryRow(),
-            const SizedBox(height: 16),
-            _buildSmartMessage(),
-            const SizedBox(height: 24),
-            _buildSection(
-              title: 'النعم (الحمد لله)',
-              items: _blessings,
-              color: Colors.green,
-              icon: Icons.favorite,
-              hint: 'نعمة جديدة اليوم...',
-              onAdd: (val, color) => setState(() => _blessings.add(JournalItem(text: val, colorValue: color.value))),
-              onDelete: (idx) => setState(() => _blessings.removeAt(idx)),
-            ),
-            const SizedBox(height: 16),
-            _buildSinsSection(),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'التقصير (سأتحسن بإذن الله)',
-              items: _shortcomings,
-              color: Colors.orange,
-              icon: Icons.trending_down,
-              hint: 'أمر قصرت فيه اليوم...',
-              onAdd: (val, color) => setState(() => _shortcomings.add(JournalItem(text: val, colorValue: color.value))),
-              onDelete: (idx) => setState(() => _shortcomings.removeAt(idx)),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _saveEntry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
+      body: ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: _isBlurred ? 8 : 0, sigmaY: _isBlurred ? 8 : 0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              QuickLinkNavigator(currentPageId: 'journal'),
+              _buildSummaryRow(),
+              const SizedBox(height: 16),
+              _buildSmartMessage(),
+              const SizedBox(height: 24),
+              _buildSection(
+                title: 'النعم (الحمد لله)',
+                items: _blessings,
+                color: Colors.green,
+                icon: Icons.favorite,
+                hint: 'نعمة جديدة اليوم...',
+                onAdd: (val, color) => setState(() => _blessings.add(JournalItem(text: val, colorValue: color.value))),
+                onDelete: (idx) => setState(() => _blessings.removeAt(idx)),
               ),
-              child: const Text('حفظ اليوم'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              _buildSinsSection(),
+              const SizedBox(height: 16),
+              _buildSection(
+                title: 'التقصير (سأتحسن بإذن الله)',
+                items: _shortcomings,
+                color: Colors.orange,
+                icon: Icons.trending_down,
+                hint: 'أمر قصرت فيه اليوم...',
+                onAdd: (val, color) => setState(() => _shortcomings.add(JournalItem(text: val, colorValue: color.value))),
+                onDelete: (idx) => setState(() => _shortcomings.removeAt(idx)),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: _saveEntry,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text('حفظ اليوم'),
+              ),
+            ],
+          ),
         ),
       ),
     );

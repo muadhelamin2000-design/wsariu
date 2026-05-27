@@ -16,13 +16,11 @@ import '../../core/mixins/help_feature_mixin.dart';
 import '../../core/mixins/ui_helpers_mixin.dart';
 import '../discipline/services/habit_service.dart';
 import '../worship/services/worship_service.dart';
+import '../worship/services/qiyam_service.dart';
 import '../../core/services/page_management_service.dart';
 import '../../core/widgets/modern_dialog.dart';
 import '../../core/widgets/smart_summary_widget.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-
-import '../../core/services/ai_context_builder.dart';
-import '../chat/ai_chat_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -153,11 +151,6 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
                       icon: const Icon(Icons.library_books_outlined, color: Colors.grey, size: 24), 
                       tooltip: 'المكتبة',
                       onPressed: () => context.push('/library-choice')
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.psychology_outlined, color: Color(0xFFC8A24A), size: 24),
-                      tooltip: 'رفيق',
-                      onPressed: () => _showAIOptions(context)
                     ),
                     IconButton(
                       icon: const Icon(Icons.search_outlined, color: Colors.grey, size: 24), 
@@ -395,6 +388,11 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
           // House in Paradise Section
           _buildHouseWidget(totalRakaat, targetRakaat, totalHouses, isHouseBuilt, isDark),
           
+          const SizedBox(height: 16),
+          
+          // Qiyam al-Layl Card
+          _buildQiyamCard(isDark),
+          
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -407,6 +405,53 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQiyamCard(bool isDark) {
+    final int todayMinutes = QiyamService.getTodayTotalPrayerMinutes();
+    final hours = todayMinutes ~/ 60;
+    final minutes = todayMinutes % 60;
+
+    return InkWell(
+      onTap: () => context.push('/worship/qiyam'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFC8A24A).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFC8A24A),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.nights_stay, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('قيام الليل 🌙', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    todayMinutes > 0 
+                      ? 'صليت اليوم: $hours ساعة و $minutes دقيقة' 
+                      : 'لم يتم تسجيل صلاة لليوم بعد',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFC8A24A)),
+          ],
+        ),
       ),
     );
   }
@@ -706,49 +751,5 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final nameController = TextEditingController(text: section.name);
     final iconController = TextEditingController(text: section.icon);
     ModernDialog.show(context: context, title: 'تعديل القسم', content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم القسم')), const SizedBox(height: 12), TextField(controller: iconController, decoration: const InputDecoration(labelText: 'الأيقونة (إيموجي)'))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), ElevatedButton(onPressed: () async { if (nameController.text.isNotEmpty) { section.name = nameController.text; section.icon = iconController.text; await PageManagementService.saveSection(section); if (mounted) Navigator.pop(context); } }, child: const Text('حفظ'))]);
-  }
-
-  void _showAIOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text('رفيق الذكاء الاصطناعي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.chat_outlined, color: Colors.blue),
-            title: const Text('رفيق العام'),
-            subtitle: const Text('مساعد شامل في كافة جوانب حياتك'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.general)));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.analytics_outlined, color: Colors.green),
-            title: const Text('تقرير الأداء اليومي'),
-            subtitle: const Text('تحليل دقيق لإنجازاتك اليوم بناءً على الأرقام'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.dailyReport)));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.history_edu_outlined, color: Colors.orange),
-            title: const Text('المستشار العام (تقرير شامل)'),
-            subtitle: const Text('تحليل مسارك العام ونقاط قوتك وضعفك'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const AIChatScreen(mode: AIChatMode.generalReport)));
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
   }
 }

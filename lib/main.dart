@@ -43,12 +43,14 @@ import 'core/services/quick_link_service.dart';
 import 'core/services/locale_service.dart';
 import 'core/services/security_service.dart';
 import 'core/services/badge_service.dart';
-import 'core/services/ai_service.dart';
 
 import 'dart:async';
 
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter/services.dart';
+
+import 'features/worship/services/qiyam_service.dart';
+import 'features/worship/services/season_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,7 +79,6 @@ void main() async {
   await Hive.initFlutter();
   
   // تهيئة الإعدادات الأساسية فوراً
-  await AIService.init();
   await ThemeService.init();
   await LocaleService.init();
   await PageManagementService.init();
@@ -119,6 +120,8 @@ void main() async {
     BrowserService.init(),
     ScreenTimeService.init(),
     BadgeService.init(),
+    QiyamService.init(),
+    SeasonService.init(),
   ]);
   debugPrint("Services initialized.");
   

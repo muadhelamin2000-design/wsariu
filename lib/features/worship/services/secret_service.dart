@@ -19,7 +19,8 @@ class SecretService {
     if (currentUserId == null) return [];
 
     return box.values
-        .map((e) => SecretEntry.fromMap(Map<dynamic, dynamic>.from(e)))
+        .where((v) => v is Map && v.containsKey('id')) // فلترة القيم لضمان أنها قيود وليست إعدادات
+        .map((e) => SecretEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)))
         .where((e) => e.userId == currentUserId && e.type == type)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
@@ -54,5 +55,16 @@ class SecretService {
 
   static Future<void> deleteCharityMonth(String id) async {
     await Hive.box(charityMonthsBox).delete(id);
+  }
+
+  // --- Settings ---
+  static bool getBlurSetting() {
+    final box = Hive.box(secretEntriesBox);
+    return box.get('is_blurred', defaultValue: false);
+  }
+
+  static Future<void> saveBlurSetting(bool isBlurred) async {
+    final box = Hive.box(secretEntriesBox);
+    await box.put('is_blurred', isBlurred);
   }
 }
