@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:go_router/go_router.dart';
 import 'models/health_models.dart';
 import 'services/health_service.dart';
 import '../profile/services/user_service.dart';
@@ -27,6 +28,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {}); 
+    });
     checkFirstTimeHelp(context, 'workout');
   }
 
@@ -57,7 +61,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with SingleTickerProvider
       body: Column(
         children: [
           const QuickLinkNavigator(currentPageId: 'workout'),
-          _buildBurnSummary(),
+          if (_tabController.index == 0) _buildBurnSummary(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -161,19 +165,44 @@ class _WorkoutScreenState extends State<WorkoutScreen> with SingleTickerProvider
                 if (ex.notes.isNotEmpty) Text('ملاحظات: ${ex.notes}', style: const TextStyle(fontSize: 12)),
                 if (ex.imagePath != null) Padding(
                   padding: const EdgeInsets.only(top: 8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(File(ex.imagePath!), height: 150, width: double.infinity, fit: BoxFit.cover),
+                  child: InkWell(
+                    onTap: () => _showImageDialog(ex.imagePath!),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.file(File(ex.imagePath!), height: 150, width: double.infinity, fit: BoxFit.cover),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(30)),
+                            child: const Icon(Icons.fullscreen, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 if (ex.videoPath != null) Padding(
                    padding: const EdgeInsets.only(top: 8),
-                   child: Row(
-                     children: [
-                       const Icon(Icons.video_library, size: 16, color: Colors.blue),
-                       const SizedBox(width: 8),
-                       Text('فيديو توضيحي مضاف', style: TextStyle(fontSize: 11, color: Colors.blue.shade700)),
-                     ],
+                   child: InkWell(
+                     onTap: () => context.push('/video-library/video-player', extra: {'path': ex.videoPath, 'name': ex.name}),
+                     child: Container(
+                       padding: const EdgeInsets.all(12),
+                       decoration: BoxDecoration(
+                         color: Colors.blue.withOpacity(0.1),
+                         borderRadius: BorderRadius.circular(12),
+                         border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                       ),
+                       child: Row(
+                         children: [
+                           const Icon(Icons.play_circle_fill, size: 30, color: Colors.blue),
+                           const SizedBox(width: 12),
+                           Expanded(child: Text('تشغيل الفيديو التوضيحي', style: TextStyle(fontSize: 13, color: Colors.blue.shade700, fontWeight: FontWeight.bold))),
+                           const Icon(Icons.chevron_right, color: Colors.blue),
+                         ],
+                       ),
+                     ),
                    ),
                 ),
                 Row(
@@ -187,6 +216,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> with SingleTickerProvider
             ),
           )
         ],
+      ),
+    );
+  }
+
+  void _showImageDialog(String path) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(alignment: Alignment.centerLeft, child: IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context))),
+            InteractiveViewer(child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.file(File(path)))),
+          ],
+        ),
       ),
     );
   }

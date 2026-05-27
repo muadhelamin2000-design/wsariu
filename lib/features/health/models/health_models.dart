@@ -18,6 +18,7 @@ class ChronicCondition {
 
   ChronicCondition({
     required this.id,
+    this.patientId,
     required this.personName,
     required this.conditionName,
     this.weight,
@@ -29,6 +30,7 @@ class ChronicCondition {
 
   Map<String, dynamic> toMap() => {
     'id': id,
+    'patientId': patientId,
     'personName': personName,
     'conditionName': conditionName,
     'weight': weight,
@@ -40,6 +42,7 @@ class ChronicCondition {
 
   factory ChronicCondition.fromMap(Map<dynamic, dynamic> map) => ChronicCondition(
     id: map['id'],
+    patientId: map['patientId'],
     personName: map['personName'],
     conditionName: map['conditionName'],
     weight: (map['weight'] as num?)?.toDouble(),

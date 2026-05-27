@@ -108,7 +108,8 @@ class NotificationService {
 
     await requestPermissions();
     
-    await cancelAllOldNotifications();
+    // تم إزالة مسح كافة التنبيهات لضمان بقاء تنبيهات الأدوية
+    // await cancelAllOldNotifications();
 
     scheduleIslamicAlarms();
     scheduleOngoingRefreshes();
@@ -402,6 +403,7 @@ class NotificationService {
     required String body,
     required dynamic time,
     String? habitId,
+    bool repeatable = true,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate;
@@ -418,7 +420,7 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      matchDateTimeComponents: repeatable ? DateTimeComponents.time : null,
     );
   }
 

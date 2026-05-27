@@ -586,6 +586,8 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
 
   Widget _buildCategoryContent(LibraryCategory cat, bool isDark) {
     final files = LibraryService.getFiles(categoryId: cat.id, type: LibraryType.audio);
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+
     return SizedBox(
       height: 100,
       child: ListView.builder(
@@ -593,7 +595,21 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
         itemCount: files.length,
         itemBuilder: (context, index) => InkWell(
           onTap: () => showModalBottomSheet(context: context, builder: (context) => ModernAudioPlayer(audioPaths: [files[index].path], titles: [files[index].name])),
-          child: Container(width: 80, margin: const EdgeInsets.only(right: 10), child: Column(children: [const Icon(Icons.music_note, color: Colors.teal), Text(files[index].name, style: const TextStyle(fontSize: 8), maxLines: 2)])),
+          child: Container(
+            width: 80, 
+            margin: const EdgeInsets.only(right: 10), 
+            child: Column(
+              children: [
+                const Icon(Icons.music_note, color: Colors.teal), 
+                Text(
+                  files[index].name, 
+                  style: TextStyle(fontSize: 8, color: textColor), 
+                  maxLines: 2, 
+                  textAlign: TextAlign.center
+                )
+              ]
+            )
+          ),
         ),
       ),
     );
@@ -620,17 +636,33 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
             columnSpacing: 12,
             columns: const [
               DataColumn(label: Text('التاريخ', style: TextStyle(fontSize: 10))),
-              DataColumn(label: Text('الساعات', style: TextStyle(fontSize: 10))),
+              DataColumn(label: Text('ساعات', style: TextStyle(fontSize: 10))),
+              DataColumn(label: Text('متوقع', style: TextStyle(fontSize: 10))),
               DataColumn(label: Text('الفعلي', style: TextStyle(fontSize: 10))),
               DataColumn(label: Text('إجراءات', style: TextStyle(fontSize: 10))),
             ],
             rows: entries.map((e) {
               final hours = e.duration.inHours;
               final mins = e.duration.inMinutes % 60;
+              final sentiment = e.notes == '1' ? 'سيء' : e.notes == '2' ? 'متوسط' : e.notes == '3' ? 'جيد' : 'ممتاز';
+              final emoji = e.notes == '1' ? '😴' : e.notes == '2' ? '😐' : e.notes == '3' ? '🙂' : '⚡';
+
               return DataRow(cells: [
                 DataCell(Text(DateFormat('MM/dd').format(e.bedTime), style: const TextStyle(fontSize: 9))),
                 DataCell(Text('$hours:$mins', style: const TextStyle(fontSize: 9))),
-                DataCell(Text(e.notes == '1' ? '😴' : e.notes == '2' ? '😐' : e.notes == '3' ? '🙂' : '⚡', style: const TextStyle(fontSize: 12))),
+                DataCell(Text('${e.quality}%', style: const TextStyle(fontSize: 9))),
+                DataCell(
+                  InkWell(
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('الحالة: $sentiment'), duration: const Duration(seconds: 1))),
+                    child: Row(
+                      children: [
+                        Text(emoji, style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 4),
+                        Text(sentiment, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                      ],
+                    ),
+                  )
+                ),
                 DataCell(Row(
                   children: [
                     IconButton(icon: const Icon(Icons.edit, size: 14), onPressed: () => _editEntry(e)),

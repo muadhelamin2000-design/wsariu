@@ -332,7 +332,13 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           ));
           if (v && updatedMed.remindType == MedicineRemindType.interval) {
              final nextTime = DateTime.now().add(Duration(minutes: (24 / updatedMed.frequencyPerDay * 60).toInt()));
-             await NotificationService.scheduleNotification(id: updatedMed.id.hashCode.abs(), title: '⏰ موعد دواء: ${updatedMed.name}', body: 'حان موعد جرعة ${updatedMed.dose}', time: nextTime);
+             await NotificationService.scheduleNotification(
+               id: updatedMed.id.hashCode.abs(), 
+               title: '⏰ موعد دواء: ${updatedMed.name}', 
+               body: 'حان موعد جرعة ${updatedMed.dose}', 
+               time: nextTime,
+               repeatable: false,
+             );
           }
           _loadData();
         },
