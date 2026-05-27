@@ -12,15 +12,20 @@ class LibraryService {
   }
 
   // --- Categories ---
-  static List<LibraryCategory> getCategories({String? parentId, LibraryType type = LibraryType.pdf}) {
+  static List<LibraryCategory> getCategories({String? parentId, LibraryType type = LibraryType.pdf, bool includeAll = false}) {
     final box = Hive.box(categoryBoxName);
     final String? userId = UserService.currentUser?.id;
     if (userId == null) return [];
 
-    return box.values
+    var entries = box.values
         .map((e) => LibraryCategory.fromMap(Map<dynamic, dynamic>.from(e)))
-        .where((e) => e.userId == userId && e.parentId == parentId && e.type == type)
-        .toList()
+        .where((e) => e.userId == userId && e.type == type);
+
+    if (!includeAll) {
+      entries = entries.where((e) => e.parentId == parentId);
+    }
+
+    return entries.toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
   }
 

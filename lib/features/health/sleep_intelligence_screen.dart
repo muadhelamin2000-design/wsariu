@@ -52,7 +52,7 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
       _waitMinutes = settings['waitMinutes'] ?? 14;
       _selectedLibraryCategoryId = settings['selectedLibraryCategoryId']; 
       final savedHabitList = settings['allHabits'] as List?;
-      if (savedHabitList != null) {
+      if (savedHabitList != null && savedHabitList.isNotEmpty) {
         _habits.clear();
         _habits.addAll(savedHabitList.map((e) => Map<String, dynamic>.from(e)).toList());
       }
@@ -508,6 +508,8 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
   Widget _buildQualityBar(bool isDark) {
     double score = _calculateExpectedQuality();
     bool anySelected = _habits.any((h) => h['selected']);
+    final emoji = score >= 80 ? '⚡' : score >= 60 ? '🙂' : score >= 40 ? '😐' : '😴';
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: isDark ? const Color(0xFF1E293B) : Colors.white, borderRadius: BorderRadius.circular(24)),
@@ -515,7 +517,7 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('جودة النوم المتوقعة'),
-            Text(anySelected ? "${score.toInt()}%" : "0%", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC8A24A))),
+            Text(anySelected ? "$emoji ${score.toInt()}%" : "😴 0%", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFC8A24A))),
           ]),
           const SizedBox(height: 12),
           LinearProgressIndicator(value: anySelected ? (score / 100) : 0, color: const Color(0xFFC8A24A), backgroundColor: Colors.grey.withOpacity(0.1)),
@@ -525,7 +527,7 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
   }
 
   Widget _buildQuietList(BuildContext context, bool isDark) {
-    final allCategories = LibraryService.getCategories(type: LibraryType.audio);
+    final allCategories = LibraryService.getCategories(type: LibraryType.audio, includeAll: true);
     LibraryCategory? selectedCategory;
     if (_selectedLibraryCategoryId != null) {
       selectedCategory = allCategories.where((c) => c.id == _selectedLibraryCategoryId).firstOrNull;
@@ -544,24 +546,93 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
               const Text('قائمة الهدوء 🧘', style: TextStyle(fontWeight: FontWeight.bold)),
               if (selectedCategory != null)
                 TextButton(onPressed: () => _addAudioToQuietList(selectedCategory!.id), child: const Text('إضافة ملف', style: TextStyle(fontSize: 12))),
-              TextButton(onPressed: () => _showCategoryPicker(allCategories), child: Text(selectedCategory == null ? 'اختر قسماً' : 'تغيير القسم')),
+              TextButton(onPressed: () => _showCategoryPicker(allCategories, isDark), child: Text(selectedCategory == null ? 'اختر قسماً' : 'تغيير القسم')),
             ],
           ),
           if (selectedCategory != null) _buildCategoryContent(selectedCategory, isDark)
-          else const Text('اختر قسماً واحداً من المكتبة ليظهر هنا', style: TextStyle(fontSize: 11, color: Colors.grey)),
+          else _buildAllAudioContent(isDark),
         ],
       ),
     );
   }
 
-  void _showCategoryPicker(List<LibraryCategory> categories) {
+  Widget _buildAllAudioContent(bool isDark) {
+    final files = LibraryService.getFiles(type: LibraryType.audio);
+    if (files.isEmpty) {
+      return const Text('لا توجد ملفات صوتية في المكتبة، أضف بعضها أو اختر قسماً', style: TextStyle(fontSize: 11, color: Colors.grey));
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('جميع الصوتيات المتاحة:', style: TextStyle(fontSize: 10, color: Colors.grey)),
+        const SizedBox(height: 8),
+        _buildFileList(files, isDark),
+      ],
+    );
+  }
+
+  Widget _buildCategoryContent(LibraryCategory cat, bool isDark) {
+    final files = LibraryService.getFiles(categoryId: cat.id, type: LibraryType.audio);
+    return _buildFileList(files, isDark);
+  }
+
+  Widget _buildFileList(List<LibraryFile> files, bool isDark) {
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+    if (files.isEmpty) return const Text('لا توجد ملفات في هذا القسم', style: TextStyle(fontSize: 11, color: Colors.grey));
+
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: files.length,
+        itemBuilder: (context, index) => InkWell(
+          onTap: () => showModalBottomSheet(context: context, builder: (context) => ModernAudioPlayer(audioPaths: [files[index].path], titles: [files[index].name])),
+          child: Container(
+            width: 80, 
+            margin: const EdgeInsets.only(right: 10), 
+            child: Column(
+              children: [
+                const Icon(Icons.music_note, color: Colors.teal, size: 40),
+                Text(
+                  files[index].name, 
+                  style: TextStyle(fontSize: 8, color: textColor), 
+                  maxLines: 2, 
+                  textAlign: TextAlign.center
+                )
+              ]
+            )
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryPicker(List<LibraryCategory> categories, bool isDark) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => ListView.builder(
-        itemCount: categories.length,
-        itemBuilder: (context, index) => ListTile(
-          title: Text(categories[index].name),
-          onTap: () { setState(() => _selectedLibraryCategoryId = categories[index].id); _saveSettings(); Navigator.pop(context); },
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('اختر قسماً من المكتبة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Divider(),
+            if (categories.isEmpty)
+              const Padding(padding: EdgeInsets.all(20), child: Text('لا توجد أقسام صوتية في المكتبة بعد', style: TextStyle(color: Colors.grey)))
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) => ListTile(
+                    title: Text(categories[index].name, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    onTap: () { setState(() => _selectedLibraryCategoryId = categories[index].id); _saveSettings(); Navigator.pop(context); },
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -582,37 +653,6 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
       await LibraryService.saveFile(file);
       setState(() {});
     }
-  }
-
-  Widget _buildCategoryContent(LibraryCategory cat, bool isDark) {
-    final files = LibraryService.getFiles(categoryId: cat.id, type: LibraryType.audio);
-    final textColor = isDark ? Colors.white70 : Colors.black87;
-
-    return SizedBox(
-      height: 100,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: files.length,
-        itemBuilder: (context, index) => InkWell(
-          onTap: () => showModalBottomSheet(context: context, builder: (context) => ModernAudioPlayer(audioPaths: [files[index].path], titles: [files[index].name])),
-          child: Container(
-            width: 80, 
-            margin: const EdgeInsets.only(right: 10), 
-            child: Column(
-              children: [
-                const Icon(Icons.music_note, color: Colors.teal), 
-                Text(
-                  files[index].name, 
-                  style: TextStyle(fontSize: 8, color: textColor), 
-                  maxLines: 2, 
-                  textAlign: TextAlign.center
-                )
-              ]
-            )
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildSleepLogTable(bool isDark) {
@@ -644,21 +684,30 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
             rows: entries.map((e) {
               final hours = e.duration.inHours;
               final mins = e.duration.inMinutes % 60;
-              final sentiment = e.notes == '1' ? 'سيء' : e.notes == '2' ? 'متوسط' : e.notes == '3' ? 'جيد' : 'ممتاز';
-              final emoji = e.notes == '1' ? '😴' : e.notes == '2' ? '😐' : e.notes == '3' ? '🙂' : '⚡';
+              
+              final expectedEmoji = e.quality >= 80 ? '⚡' : e.quality >= 60 ? '🙂' : e.quality >= 40 ? '😐' : '😴';
+              final expectedText = e.quality >= 80 ? 'ممتاز' : e.quality >= 60 ? 'جيد' : e.quality >= 40 ? 'متوسط' : 'سيء';
+              
+              final actualSentiment = e.notes == '1' ? 'سيء' : e.notes == '2' ? 'متوسط' : e.notes == '3' ? 'جيد' : 'ممتاز';
+              final actualEmoji = e.notes == '1' ? '😴' : e.notes == '2' ? '😐' : e.notes == '3' ? '🙂' : '⚡';
 
               return DataRow(cells: [
                 DataCell(Text(DateFormat('MM/dd').format(e.bedTime), style: const TextStyle(fontSize: 9))),
                 DataCell(Text('$hours:$mins', style: const TextStyle(fontSize: 9))),
-                DataCell(Text('${e.quality}%', style: const TextStyle(fontSize: 9))),
                 DataCell(
                   InkWell(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('الحالة: $sentiment'), duration: const Duration(seconds: 1))),
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('الجودة المتوقعة: $expectedText (${e.quality}%)'), duration: const Duration(seconds: 1))),
+                    child: Row(children: [Text(expectedEmoji, style: const TextStyle(fontSize: 14)), const SizedBox(width: 4), Text(expectedText, style: const TextStyle(fontSize: 8, color: Colors.grey))]),
+                  )
+                ),
+                DataCell(
+                  InkWell(
+                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('الحالة الفعلية: $actualSentiment'), duration: const Duration(seconds: 1))),
                     child: Row(
                       children: [
-                        Text(emoji, style: const TextStyle(fontSize: 14)),
+                        Text(actualEmoji, style: const TextStyle(fontSize: 14)),
                         const SizedBox(width: 4),
-                        Text(sentiment, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                        Text(actualSentiment, style: const TextStyle(fontSize: 8, color: Colors.grey)),
                       ],
                     ),
                   )

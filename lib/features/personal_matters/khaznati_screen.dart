@@ -145,11 +145,46 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
             ),
         ],
       ),
-      onLongPress: () async {
-        if (type == 'subs') await PersonalMattersService.deleteSubscription(item.id);
-        else await PersonalMattersService.deleteTransaction(item.id);
-        _loadData();
-      },
+      onLongPress: () => _showItemOptions(item, type),
+    );
+  }
+
+  void _showItemOptions(dynamic item, String type) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('تعديل'),
+              onTap: () {
+                Navigator.pop(context);
+                if (type == 'subs') {
+                  _showAddSubscriptionDialog(sub: item as Subscription);
+                } else {
+                  _showAddTransactionDialog(trans: item as FinanceTransaction);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('حذف', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف', message: 'هل أنت متأكد من الحذف؟');
+                if (confirm == true) {
+                  if (type == 'subs') await PersonalMattersService.deleteSubscription(item.id);
+                  else await PersonalMattersService.deleteTransaction(item.id);
+                  _loadData();
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -196,15 +231,15 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
     );
   }
 
-  void _showAddTransactionDialog({FinanceType? forcedType}) {
-    final amountController = TextEditingController();
-    final descController = TextEditingController();
-    FinanceType type = forcedType ?? FinanceType.expense;
+  void _showAddTransactionDialog({FinanceType? forcedType, FinanceTransaction? trans}) {
+    final amountController = TextEditingController(text: trans?.amount.toInt().toString());
+    final descController = TextEditingController(text: trans?.description);
+    FinanceType type = trans?.type ?? forcedType ?? FinanceType.expense;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          title: const Text('إضافة معاملة'),
+          title: Text(trans == null ? 'إضافة معاملة' : 'تعديل معاملة'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -224,14 +259,20 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
               onPressed: () async {
                 if (amountController.text.isNotEmpty && descController.text.isNotEmpty) {
                   final t = FinanceTransaction(
-                    id: const Uuid().v4(),
+                    id: trans?.id ?? const Uuid().v4(),
                     amount: double.tryParse(amountController.text) ?? 0,
                     type: type,
-                    category: 'عام',
+                    category: trans?.category ?? 'عام',
                     description: descController.text,
-                    date: DateTime.now(),
+                    date: trans?.date ?? DateTime.now(),
+                    isSettled: trans?.isSettled ?? false,
+                    details: trans?.details ?? [],
                   );
-                  await PersonalMattersService.addTransaction(t);
+                  if (trans == null) {
+                    await PersonalMattersService.addTransaction(t);
+                  } else {
+                    await PersonalMattersService.updateTransaction(trans, t);
+                  }
                   Navigator.pop(context);
                   _loadData();
                 }
@@ -244,13 +285,13 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
     );
   }
 
-  void _showAddSubscriptionDialog() {
-    final nameController = TextEditingController();
-    final amountController = TextEditingController();
+  void _showAddSubscriptionDialog({Subscription? sub}) {
+    final nameController = TextEditingController(text: sub?.name);
+    final amountController = TextEditingController(text: sub?.amount.toInt().toString());
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('إضافة اشتراك'),
+        title: Text(sub == null ? 'إضافة اشتراك' : 'تعديل اشتراك'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -263,13 +304,14 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty && amountController.text.isNotEmpty) {
-                final sub = Subscription(
-                  id: const Uuid().v4(),
+                final newSub = Subscription(
+                  id: sub?.id ?? const Uuid().v4(),
                   name: nameController.text,
                   amount: double.tryParse(amountController.text) ?? 0,
-                  startDate: DateTime.now(),
+                  startDate: sub?.startDate ?? DateTime.now(),
+                  paidMonths: sub?.paidMonths ?? [],
                 );
-                await PersonalMattersService.saveSubscription(sub);
+                await PersonalMattersService.saveSubscription(newSub);
                 Navigator.pop(context);
                 _loadData();
               }
