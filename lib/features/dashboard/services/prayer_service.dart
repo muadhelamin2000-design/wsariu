@@ -15,11 +15,14 @@ class PrayerService {
 
   static Map<String, DateTime> getPrayerTimes() {
     final prayerTimes = _getTodayTimes();
+    final now = DateTime.now();
+    final bool isFriday = now.weekday == DateTime.friday;
+
     return {
       'الفجر': prayerTimes.fajr,
       'الشروق': prayerTimes.sunrise,
       'الضحى': prayerTimes.sunrise.add(const Duration(minutes: 20)),
-      'الظهر': prayerTimes.dhuhr,
+      isFriday ? 'الجمعة' : 'الظهر': prayerTimes.dhuhr,
       'العصر': prayerTimes.asr,
       'المغرب': prayerTimes.maghrib,
       'العشاء': prayerTimes.isha,

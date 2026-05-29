@@ -1,11 +1,13 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import 'models/journal_model.dart';
 import 'services/journal_service.dart';
 import '../profile/services/user_service.dart';
 import '../../core/app_theme.dart';
 import '../../core/widgets/quick_link_navigator.dart';
+import '../../core/widgets/modern_dialog.dart';
+import '../../core/services/theme_service.dart';
 
 import '../../core/mixins/help_feature_mixin.dart';
 
@@ -17,361 +19,273 @@ class JournalScreen extends StatefulWidget {
 }
 
 class _JournalScreenState extends State<JournalScreen> with HelpFeatureMixin {
-  DateTime _selectedDate = DateTime.now();
-  bool _isBlurred = false; // New
-  
-  List<JournalItem> _blessings = [];
-  List<MistakeWithEffect> _sinsWithEffects = [];
-  List<JournalItem> _shortcomings = [];
-
-  final List<Color> _availableTextColors = [
-    Colors.black, Colors.blue, Colors.red, Colors.green, Colors.purple, Colors.orange, Colors.brown,
-    const Color(0xFF0F3D2E), const Color(0xFFC8A24A),
-  ];
+  List<JournalEntry> _notes = [];
+  String _searchQuery = "";
 
   @override
   void initState() {
     super.initState();
-    _isBlurred = JournalService.getBlurSetting(); // New
-    _loadEntry();
+    _loadNotes();
     checkFirstTimeHelp(context, 'journal');
   }
 
-  void _toggleBlur() async {
-    setState(() => _isBlurred = !_isBlurred);
-    await JournalService.saveBlurSetting(_isBlurred);
-  }
-
-  void _loadEntry() {
-    final entry = JournalService.getEntryForDate(_selectedDate);
+  void _loadNotes() {
     setState(() {
-      _blessings = entry != null ? List.from(entry.blessings) : [];
-      _sinsWithEffects = entry != null ? List.from(entry.mistakesWithEffects) : [];
-      _shortcomings = entry != null ? List.from(entry.shortcomings) : [];
+      _notes = JournalService.getAllEntries();
     });
-  }
-
-  Future<void> _saveEntry() async {
-    final String? userId = UserService.currentUser?.id;
-    if (userId == null) return;
-
-    final entry = JournalEntry(
-      id: "${userId}_${DateFormat('yyyy-MM-dd').format(_selectedDate)}",
-      userId: userId,
-      date: _selectedDate,
-      blessings: _blessings,
-      mistakesWithEffects: _sinsWithEffects,
-      shortcomings: _shortcomings,
-    );
-
-    await JournalService.saveEntry(entry);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ الصحيفة بنجاح')));
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final customBg = getPageBackgroundColor('journal');
+    final isDark = ThemeService.isDarkMode;
+    final filtered = _notes.where((n) => 
+      n.headline.contains(_searchQuery) || n.content.contains(_searchQuery)
+    ).toList().reversed.toList();
+
     return Scaffold(
-      backgroundColor: customBg,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const FittedBox(fit: BoxFit.scaleDown, child: Text('صحيفتي')),
+        title: const Text('المذكرات 📝'),
         actions: [
           buildHelpButton(
             context, 
-            title: 'شرح صحيفتي', 
-            description: 'هذا القسم لتسجيل مشاعرك وأعمالك:\n'
-            '- سجل النعم التي تشكر الله عليها.\n'
-            '- اعترف بذنوبك واستغفر عنها.\n'
-            '- دون إنجازاتك ومشاعرك اليومية.\n'
-            '- يمكنك اختيار لون الخط لكل تدوينة.',
-            pageId: 'journal',
+            title: 'شرح المذكرات', 
+            description: 'هذا القسم لتسجيل ذكرياتك وأفكارك الخاصة بطريقة منظمة (تشبه ملاحظات الهاتف):\n'
+            '- أضف عنواناً (Headline) لكل مذكرة لتمييزها.\n'
+            '- تحكم في حجم ولون الخط والتظليل.\n'
+            '- ميز مذكراتك المفضلة لتصل إليها بسرعة.'
           ),
-          IconButton(
-            icon: Icon(_isBlurred ? Icons.visibility_off : Icons.visibility),
-            onPressed: _toggleBlur,
-            tooltip: 'إخفاء النصوص',
-          ),
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            onPressed: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime(2023),
-                lastDate: DateTime.now(),
-              );
-              if (date != null) {
-                setState(() => _selectedDate = date);
-                _loadEntry();
-              }
-            },
-          ),
-          TextButton(onPressed: _saveEntry, child: const Text('حفظ', style: TextStyle(color: Color(0xFFC8A24A), fontWeight: FontWeight.bold))),
         ],
       ),
-      body: ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: _isBlurred ? 8 : 0, sigmaY: _isBlurred ? 8 : 0),
-        child: SingleChildScrollView(
+      body: Column(
+        children: [
+          QuickLinkNavigator(currentPageId: 'journal'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              onChanged: (v) => setState(() => _searchQuery = v),
+              decoration: InputDecoration(
+                hintText: 'ابحث في المذكرات...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: isDark ? Colors.white10 : Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+              ),
+            ),
+          ),
+          Expanded(
+            child: filtered.isEmpty
+                ? const Center(child: Text('لا توجد مذكرات مضافة بعد', style: TextStyle(color: Colors.grey)))
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) => _buildNoteCard(filtered[index]),
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showEditNoteSheet(),
+        backgroundColor: const Color(0xFFC8A24A),
+        child: const Icon(Icons.edit_note, color: Colors.white, size: 30),
+      ),
+    );
+  }
+
+  Widget _buildNoteCard(JournalEntry note) {
+    final isDark = ThemeService.isDarkMode;
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.1),
+      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+      child: InkWell(
+        onTap: () => _showEditNoteSheet(note: note),
+        onLongPress: () => _confirmDelete(note),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              QuickLinkNavigator(currentPageId: 'journal'),
-              _buildSummaryRow(),
-              const SizedBox(height: 16),
-              _buildSmartMessage(),
-              const SizedBox(height: 24),
-              _buildSection(
-                title: 'النعم (الحمد لله)',
-                items: _blessings,
-                color: Colors.green,
-                icon: Icons.favorite,
-                hint: 'نعمة جديدة اليوم...',
-                onAdd: (val, color) => setState(() => _blessings.add(JournalItem(text: val, colorValue: color.value))),
-                onDelete: (idx) => setState(() => _blessings.removeAt(idx)),
-              ),
-              const SizedBox(height: 16),
-              _buildSinsSection(),
-              const SizedBox(height: 16),
-              _buildSection(
-                title: 'التقصير (سأتحسن بإذن الله)',
-                items: _shortcomings,
-                color: Colors.orange,
-                icon: Icons.trending_down,
-                hint: 'أمر قصرت فيه اليوم...',
-                onAdd: (val, color) => setState(() => _shortcomings.add(JournalItem(text: val, colorValue: color.value))),
-                onDelete: (idx) => setState(() => _shortcomings.removeAt(idx)),
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _saveEntry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text('حفظ اليوم'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow() {
-    return Row(
-      children: [
-        _summaryItem('النعم', _blessings.length.toString(), Colors.green),
-        const SizedBox(width: 8),
-        _summaryItem('الذنوب', _sinsWithEffects.length.toString(), Colors.red),
-        const SizedBox(width: 8),
-        _summaryItem('التقصير', _shortcomings.length.toString(), Colors.orange),
-      ],
-    );
-  }
-
-  Widget _summaryItem(String label, String val, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          children: [
-            Text(val, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 12, color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmartMessage() {
-    String msg = "ابدأ يومك بذكر نعم الله عليك.";
-    if (_blessings.length > _sinsWithEffects.length) msg = "ما شاء الله، النعم كثيرة اليوم. استمر في شكر الله.";
-    if (_sinsWithEffects.length > 0) msg = "باب التوبة مفتوح دائماً، أستغفر الله وتب إليه.";
-    if (_blessings.isEmpty && _sinsWithEffects.isEmpty && _shortcomings.isEmpty) msg = "كيف كان يومك؟ ابدأ بكتابة صحيفتك الآن.";
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-      child: Text(msg, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
-    );
-  }
-
-  Widget _buildSinsSection() {
-    final sinController = TextEditingController();
-    final effectController = TextEditingController();
-    Color sectionColor = Colors.red;
-    Color selectedTextColor = Colors.black;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.priority_high, color: sectionColor, size: 20),
-                const SizedBox(width: 8),
-                Text('الذنوب وأثرها (أستغفر الله)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: sectionColor)),
-              ],
-            ),
-            const Text('إضافة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ..._sinsWithEffects.asMap().entries.map((e) => Card(
-          elevation: 0,
-          color: sectionColor.withOpacity(0.05),
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            title: Text(e.value.mistake, style: TextStyle(fontWeight: FontWeight.bold, color: Color(e.value.colorValue))),
-            subtitle: e.value.effect.isNotEmpty ? Text("الأثر: ${e.value.effect}", style: const TextStyle(color: Colors.redAccent, fontSize: 12)) : null,
-            trailing: IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() => _sinsWithEffects.removeAt(e.key))),
-          ),
-        )),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            children: [
-              StatefulBuilder(builder: (context, setInputState) => Column(
+              Row(
                 children: [
-                  TextField(
-                    controller: sinController,
-                    style: TextStyle(color: selectedTextColor),
-                    decoration: const InputDecoration(hintText: 'ما هو الذنب؟', border: InputBorder.none, isDense: true),
-                  ),
-                  const Divider(),
-                  TextField(
-                    controller: effectController,
-                    decoration: const InputDecoration(hintText: 'أثر الذنب (إن وجد)...', border: InputBorder.none, isDense: true),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('لون الخط:', style: TextStyle(fontSize: 10)),
-                  const SizedBox(height: 4),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _availableTextColors.map((c) => GestureDetector(
-                        onTap: () => setInputState(() => selectedTextColor = c),
-                        child: Container(
-                          width: 24, height: 24, margin: const EdgeInsets.only(left: 8),
-                          decoration: BoxDecoration(color: c, shape: BoxShape.circle, border: selectedTextColor == c ? Border.all(color: Colors.white, width: 2) : null),
-                        ),
-                      )).toList(),
+                  Expanded(
+                    child: Text(
+                      note.headline.isEmpty ? 'بدون عنوان' : note.headline,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (note.isFavorite) const Icon(Icons.star, color: Colors.amber, size: 16),
                 ],
-              )),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: () {
-                    if (sinController.text.isNotEmpty) {
-                      setState(() {
-                        _sinsWithEffects.add(MistakeWithEffect(
-                          mistake: sinController.text, 
-                          effect: effectController.text,
-                          colorValue: selectedTextColor.value,
-                        ));
-                      });
-                      sinController.clear();
-                      effectController.clear();
-                    }
-                  },
-                  child: Text('إضافة الذنب', style: TextStyle(color: sectionColor, fontWeight: FontWeight.bold)),
+              ),
+              const Divider(height: 16, thickness: 0.5),
+              Expanded(
+                child: Text(
+                  note.content,
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    height: 1.4,
+                    backgroundColor: note.highlightColorValue != null ? Color(note.highlightColorValue!).withOpacity(0.3) : null,
+                  ),
+                  maxLines: 5,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    DateFormat('yyyy/MM/dd').format(note.date),
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  ),
+                  const Icon(Icons.edit_note, size: 16, color: Colors.grey),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditNoteSheet({JournalEntry? note}) {
+    final isEdit = note != null;
+    final headlineController = TextEditingController(text: note?.headline);
+    final contentController = TextEditingController(text: note?.content);
+    bool isFavorite = note?.isFavorite ?? false;
+    double fontSize = note?.fontSize ?? 16.0;
+    int selectedColor = note?.colorValue ?? 0xFF000000;
+    int? highlightColor = note?.highlightColorValue;
+    
+    final List<Color> colors = [
+      Colors.black, Colors.blue, Colors.red, Colors.green, Colors.purple, Colors.orange, Colors.brown,
+      const Color(0xFF0F3D2E), const Color(0xFFC8A24A),
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: BoxDecoration(
+            color: ThemeService.isDarkMode ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(isEdit ? 'تعديل المذكرة' : 'مذكرة جديدة', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(isFavorite ? Icons.star : Icons.star_border, color: Colors.amber),
+                        onPressed: () => setModalState(() => isFavorite = !isFavorite),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          if (contentController.text.isEmpty && headlineController.text.isEmpty) return;
+                          final newNote = JournalEntry(
+                            id: note?.id ?? const Uuid().v4(),
+                            userId: UserService.currentUser!.id,
+                            date: note?.date ?? DateTime.now(),
+                            headline: headlineController.text,
+                            content: contentController.text,
+                            isFavorite: isFavorite,
+                            fontSize: fontSize,
+                            colorValue: selectedColor,
+                            highlightColorValue: highlightColor,
+                          );
+                          await JournalService.saveEntry(newNote);
+                          Navigator.pop(context);
+                          _loadNotes();
+                        },
+                        child: const Text('حفظ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Divider(),
+              TextField(
+                controller: headlineController,
+                decoration: const InputDecoration(hintText: 'العنوان (مثلاً: العائلة)', border: InputBorder.none, hintStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+              ),
+              const SizedBox(height: 12),
+              // Toolbar
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.format_size), onPressed: () => setModalState(() => fontSize = (fontSize + 2).clamp(12, 32))),
+                    IconButton(icon: const Icon(Icons.text_decrease), onPressed: () => setModalState(() => fontSize = (fontSize - 2).clamp(12, 32))),
+                    const VerticalDivider(),
+                    ...colors.map((c) => GestureDetector(
+                      onTap: () => setModalState(() => selectedColor = c.value),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 24, height: 24,
+                        decoration: BoxDecoration(color: c, shape: BoxShape.circle, border: selectedColor == c.value ? Border.all(color: Colors.grey, width: 2) : null),
+                      ),
+                    )),
+                    const VerticalDivider(),
+                    IconButton(
+                      icon: const Icon(Icons.format_color_fill),
+                      onPressed: () => setModalState(() => highlightColor = highlightColor == null ? Colors.yellow.value : null),
+                      color: highlightColor != null ? Color(highlightColor!) : Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: TextField(
+                  controller: contentController,
+                  maxLines: null,
+                  expands: true,
+                  decoration: const InputDecoration(hintText: 'اكتب ذكرياتك هنا...', border: InputBorder.none),
+                  style: TextStyle(
+                    fontSize: fontSize, 
+                    color: Color(selectedColor),
+                    backgroundColor: highlightColor != null ? Color(highlightColor!).withOpacity(0.3) : null,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required List<JournalItem> items,
-    required Color color,
-    required IconData icon,
-    required String hint,
-    required Function(String, Color) onAdd,
-    required Function(int) onDelete,
-  }) {
-    final controller = TextEditingController();
-    Color selectedTextColor = Colors.black;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 8),
-                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-              ],
-            ),
-            const Text('إضافة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ...items.asMap().entries.map((e) => Card(
-          elevation: 0,
-          color: color.withOpacity(0.05),
-          margin: const EdgeInsets.only(bottom: 4),
-          child: ListTile(
-            title: Text(e.value.text, style: TextStyle(color: Color(e.value.colorValue))),
-            trailing: IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => onDelete(e.key)),
-            dense: true,
-          ),
-        )),
-        StatefulBuilder(builder: (context, setInputState) => Column(
-          children: [
-            TextField(
-              controller: controller,
-              style: TextStyle(color: selectedTextColor),
-              decoration: InputDecoration(
-                hintText: hint,
-                suffixIcon: TextButton(
-                  onPressed: () {
-                    if (controller.text.isNotEmpty) {
-                      onAdd(controller.text, selectedTextColor);
-                      controller.clear();
-                    }
-                  },
-                  child: Text('إضافة', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                ),
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _availableTextColors.map((c) => GestureDetector(
-                  onTap: () => setInputState(() => selectedTextColor = c),
-                  child: Container(
-                    width: 20, height: 24, margin: const EdgeInsets.only(left: 8),
-                    decoration: BoxDecoration(color: c, shape: BoxShape.circle, border: selectedTextColor == c ? Border.all(color: Colors.white, width: 2) : null),
-                  ),
-                )).toList(),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        )),
-      ],
+  void _confirmDelete(JournalEntry note) async {
+    final res = await ModernDialog.showConfirm(
+      context: context,
+      title: 'حذف المذكرة؟',
+      message: 'هل أنت متأكد من حذف هذه المذكرة نهائياً؟',
+      isDestructive: true,
     );
+    if (res == true) {
+      await JournalService.deleteEntry(note.id);
+      _loadNotes();
+    }
   }
 }

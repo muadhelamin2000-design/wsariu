@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 // --- Chronic Conditions & Lab Tests (New) ---
 
 enum MedicineStatus { taken, pending, missed }
-enum MedicineRemindType { fixed, interval }
+enum MedicineRemindType { fixed, interval, prayer }
 
 class ChronicCondition {
   final String id;
@@ -62,6 +62,7 @@ class Medicine {
   final int minute;
   final int frequencyPerDay;
   final MedicineRemindType remindType;
+  final String? linkedPrayer;
   final DateTime? lastTakenAt;
   MedicineStatus status;
 
@@ -74,6 +75,7 @@ class Medicine {
     required this.minute,
     this.frequencyPerDay = 1,
     this.remindType = MedicineRemindType.fixed,
+    this.linkedPrayer,
     this.lastTakenAt,
     this.status = MedicineStatus.pending,
   });
@@ -89,6 +91,7 @@ class Medicine {
     'minute': minute,
     'frequencyPerDay': frequencyPerDay,
     'remindType': remindType.index,
+    'linkedPrayer': linkedPrayer,
     'lastTakenAt': lastTakenAt?.toIso8601String(),
     'status': status.index,
   };
@@ -102,23 +105,31 @@ class Medicine {
     minute: map['minute'],
     frequencyPerDay: map['frequencyPerDay'] ?? 1,
     remindType: MedicineRemindType.values[map['remindType'] ?? 0],
+    linkedPrayer: map['linkedPrayer'],
     lastTakenAt: map['lastTakenAt'] != null ? DateTime.parse(map['lastTakenAt']) : null,
     status: MedicineStatus.values[map['status'] ?? 1],
   );
 
   Medicine copyWith({
+    String? name,
+    String? dose,
     MedicineStatus? status,
     DateTime? lastTakenAt,
+    String? linkedPrayer,
+    MedicineRemindType? remindType,
+    int? hour,
+    int? minute,
   }) {
     return Medicine(
       id: id,
-      name: name,
-      dose: dose,
+      name: name ?? this.name,
+      dose: dose ?? this.dose,
       instruction: instruction,
-      hour: hour,
-      minute: minute,
+      hour: hour ?? this.hour,
+      minute: minute ?? this.minute,
       frequencyPerDay: frequencyPerDay,
-      remindType: remindType,
+      remindType: remindType ?? this.remindType,
+      linkedPrayer: linkedPrayer ?? this.linkedPrayer,
       lastTakenAt: lastTakenAt ?? this.lastTakenAt,
       status: status ?? this.status,
     );

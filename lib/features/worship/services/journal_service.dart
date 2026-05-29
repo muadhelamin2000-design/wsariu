@@ -28,6 +28,11 @@ class JournalService {
     await box.put(dateKey, entry.toMap());
   }
 
+  static Future<void> deleteEntry(String id) async {
+    final box = Hive.box(boxName);
+    await box.delete(id);
+  }
+
   static List<JournalEntry> getAllEntries() {
     final box = Hive.box(boxName);
     final String? currentUserId = UserService.currentUser?.id;

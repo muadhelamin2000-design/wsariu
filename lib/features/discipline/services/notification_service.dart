@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:adhan/adhan.dart';
 import '../models/habit_model.dart';
 import '../../dashboard/services/prayer_service.dart';
+import '../../worship/services/addiction_service.dart';
 import 'habit_service.dart';
 
 class NotificationService {
@@ -78,6 +79,10 @@ class NotificationService {
             snoozeDuration: snoozeMins,
             customSoundPath: soundPath,
           );
+        } else if (response.actionId == 'addiction_triumph_yes') {
+          await AddictionService.logDailyTriumph(true);
+        } else if (response.actionId == 'addiction_triumph_no') {
+          await AddictionService.logDailyTriumph(false);
         }
       },
     );
@@ -286,6 +291,37 @@ class NotificationService {
     await scheduleNotification(
       id: 1008, title: "🌌 منتصف الليل", body: "أفضل الصلاة بعد الفريضة صلاة الليل.. هل لك ركعات في جوف الليل؟",
       time: nightTimes['midnightSharia']!,
+    );
+
+    // إضافة إشعار "عوضه الله" عند الفجر
+    final fajrTime = prayerTimes['الفجر'];
+    if (fajrTime != null) {
+      await scheduleAddictionTriumphNotification(fajrTime);
+    }
+  }
+
+  static Future<void> scheduleAddictionTriumphNotification(DateTime fajrTime) async {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime.from(fajrTime, tz.local);
+    if (scheduledDate.isBefore(now)) { scheduledDate = scheduledDate.add(const Duration(days: 1)); }
+
+    await _notificationsPlugin.zonedSchedule(
+      id: 7777,
+      title: "🤝 عوضه الله: حصاد الأمس",
+      body: "هل انتصرت في مجاهدة نفسك بالأمس؟",
+      scheduledDate: scheduledDate,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'habit_smart_reminders', 'تذكيرات العادات',
+          importance: Importance.max, priority: Priority.high,
+          actions: [
+            AndroidNotificationAction('addiction_triumph_yes', '✅ نعم، انتصرت', showsUserInterface: true),
+            AndroidNotificationAction('addiction_triumph_no', '❌ لا، تعثرت', showsUserInterface: true),
+          ],
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 

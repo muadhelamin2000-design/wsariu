@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'models/incremental_habit_model.dart';
+import 'models/habit_model.dart';
 import 'services/incremental_habit_service.dart';
 import '../profile/services/user_service.dart';
 import '../dashboard/services/prayer_service.dart';
@@ -58,7 +59,7 @@ class _IncrementalHabitsScreenState extends State<IncrementalHabitsScreen> with 
             '- أضف تحدياً جديداً (مثل: قيام الليل، قراءة القرآن).\n'
             '- حدد البداية، الهدف النهائي، ومقدار الزيادة الدورية.\n'
             '- النظام سيقوم بزيادة المستهدف تلقائياً بناءً على جدولك.\n'
-            '- اضغط (+) عند الإنجاز لرفع نقاطك.',
+            '- اضغط تسجيل عند الإنجاز لرفع نقاطك.',
             pageId: 'incremental',
           ),
           TextButton(
@@ -243,6 +244,8 @@ class _IncrementalHabitsScreenState extends State<IncrementalHabitsScreen> with 
     final unitController = TextEditingController(text: habit?.unit ?? '');
     int selectedColor = habit?.colorValue ?? 0xFF0F3D2E;
     TimeOfDay? selectedTime = habit?.reminderTime;
+    ReminderType reminderType = habit?.reminderType ?? ReminderType.fixed;
+    String? selectedPrayer = habit?.linkedPrayer;
 
     ModernDialog.show(
       context: context,
@@ -285,17 +288,35 @@ class _IncrementalHabitsScreenState extends State<IncrementalHabitsScreen> with 
                   Expanded(child: TextField(controller: daysController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كل كم يوم؟'))),
                 ],
               ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.access_time, color: Color(0xFFC8A24A)),
-                title: Text(selectedTime == null ? 'ضبط منبه للتذكير' : 'وقت التذكير: ${selectedTime!.format(context)}'),
-                trailing: selectedTime != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setSheetState(() => selectedTime = null)) : const Icon(Icons.keyboard_arrow_left, size: 14),
-                onTap: () async {
-                  final p = await showTimePicker(context: context, initialTime: selectedTime ?? TimeOfDay.now());
-                  if (p != null) setSheetState(() => selectedTime = p);
-                },
+              const Divider(height: 32),
+              const Text('نظام التذكير الذكي', style: TextStyle(fontWeight: FontWeight.bold)),
+              DropdownButtonFormField<ReminderType>(
+                value: reminderType,
+                items: const [
+                  DropdownMenuItem(value: ReminderType.fixed, child: Text('تذكير بموعد ثابت')),
+                  DropdownMenuItem(value: ReminderType.prayer, child: Text('مرتبط بصلاة 🕋')),
+                ],
+                onChanged: (v) => setSheetState(() => reminderType = v!),
+                decoration: const InputDecoration(labelText: 'نوع التذكير'),
               ),
+              if (reminderType == ReminderType.fixed)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.access_time, color: Color(0xFFC8A24A)),
+                  title: Text(selectedTime == null ? 'ضبط وقت التذكير' : 'موعد: ${selectedTime!.format(context)}'),
+                  trailing: selectedTime != null ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setSheetState(() => selectedTime = null)) : const Icon(Icons.keyboard_arrow_left, size: 14),
+                  onTap: () async {
+                    final TimeOfDay? picked = await showTimePicker(context: context, initialTime: selectedTime ?? TimeOfDay.now());
+                    if (picked != null) setSheetState(() => selectedTime = picked);
+                  },
+                )
+              else
+                DropdownButtonFormField<String>(
+                  value: selectedPrayer,
+                  items: ['الفجر', 'الشروق', 'الضحى', 'الظهر', 'العصر', 'المغرب', 'العشاء'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                  onChanged: (v) => setSheetState(() => selectedPrayer = v),
+                  decoration: const InputDecoration(labelText: 'اختر الصلاة'),
+                ),
               const SizedBox(height: 16),
               const Text('اللون المميز:', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
@@ -338,6 +359,8 @@ class _IncrementalHabitsScreenState extends State<IncrementalHabitsScreen> with 
               colorValue: selectedColor,
               reminderHour: selectedTime?.hour,
               reminderMinute: selectedTime?.minute,
+              reminderType: reminderType,
+              linkedPrayer: selectedPrayer,
             );
             await IncrementalHabitService.saveHabit(newHabit);
             if (mounted) {

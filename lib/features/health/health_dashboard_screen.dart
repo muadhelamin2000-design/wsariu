@@ -9,6 +9,8 @@ import '../../core/services/theme_service.dart';
 import '../../core/widgets/modern_dialog.dart';
 import 'models/health_models.dart';
 import 'services/health_service.dart';
+import '../dashboard/services/prayer_service.dart';
+import '../discipline/models/habit_model.dart';
 import '../discipline/services/notification_service.dart';
 
 class HealthDashboardScreen extends StatefulWidget {
@@ -133,23 +135,40 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            CircleAvatar(
-              radius: 35,
-              backgroundColor: Colors.blue.withOpacity(0.1),
-              backgroundImage: patient.imagePath != null ? FileImage(File(patient.imagePath!)) : null,
-              child: patient.imagePath == null ? const Icon(Icons.person, size: 35, color: Colors.blue) : null,
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.edit, size: 18, color: Colors.grey),
+                onPressed: () => _showAddPatientDialog(patient: patient),
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            Text('${patient.age ?? "?"} سنة', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: const Text('عرض السجل', style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.blue.withOpacity(0.1),
+                    backgroundImage: patient.imagePath != null ? FileImage(File(patient.imagePath!)) : null,
+                    child: patient.imagePath == null ? const Icon(Icons.person, size: 35, color: Colors.blue) : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(
+                    '${patient.age ?? "?"} سنة | ${patient.weight ?? "?"} كجم | ${patient.height ?? "?"} سم',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                    child: const Text('عرض السجل', style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -157,47 +176,67 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
     );
   }
 
-  void _showAddPatientDialog() async {
-    final nameController = TextEditingController();
-    final ageController = TextEditingController();
-    String? imagePath;
+  void _showAddPatientDialog({PatientProfile? patient}) async {
+    final nameController = TextEditingController(text: patient?.name);
+    final ageController = TextEditingController(text: patient?.age?.toString());
+    final weightController = TextEditingController(text: patient?.weight?.toString());
+    final heightController = TextEditingController(text: patient?.height?.toString());
+    String? imagePath = patient?.imagePath;
 
     ModernDialog.show(
       context: context,
-      title: 'إضافة ملف مريض',
+      title: patient == null ? 'إضافة ملف مريض' : 'تعديل ملف مريض',
       content: StatefulBuilder(
-        builder: (context, setModalState) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: () async {
-                final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-                if (picked != null) setModalState(() => imagePath = picked.path);
-              },
-              child: CircleAvatar(
-                radius: 30,
-                backgroundImage: imagePath != null ? FileImage(File(imagePath!)) : null,
-                child: imagePath == null ? const Icon(Icons.camera_alt) : null,
+        builder: (context, setModalState) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+                  if (picked != null) setModalState(() => imagePath = picked.path);
+                },
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundImage: imagePath != null ? FileImage(File(imagePath!)) : null,
+                  child: imagePath == null ? const Icon(Icons.camera_alt) : null,
+                ),
               ),
-            ),
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم المريض')),
-            TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'العمر')),
-          ],
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم المريض')),
+              TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'العمر')),
+              TextField(controller: weightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الوزن (كجم)')),
+              TextField(controller: heightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الطول (سم)')),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        if (patient != null)
+          TextButton(
+            onPressed: () async {
+              final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف', message: 'هل أنت متأكد من حذف الملف؟');
+              if (confirm == true) {
+                await HealthService.deletePatient(patient.id);
+                Navigator.pop(context);
+                _loadData();
+              }
+            },
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
+          ),
         ElevatedButton(
           onPressed: () async {
             if (nameController.text.isNotEmpty) {
-              final patient = PatientProfile(
-                id: const Uuid().v4(),
+              final newPatient = PatientProfile(
+                id: patient?.id ?? const Uuid().v4(),
                 userId: HealthService.getProfile()?.userId ?? 'default',
                 name: nameController.text,
                 age: int.tryParse(ageController.text),
+                weight: double.tryParse(weightController.text),
+                height: double.tryParse(heightController.text),
                 imagePath: imagePath,
               );
-              await HealthService.savePatient(patient);
+              await HealthService.savePatient(newPatient);
               Navigator.pop(context);
               _loadData();
             }
@@ -266,12 +305,17 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         children: [
           CircleAvatar(radius: 30, backgroundImage: widget.patient.imagePath != null ? FileImage(File(widget.patient.imagePath!)) : null),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text('العمر: ${widget.patient.age ?? "?"} | الوزن: ${widget.patient.weight ?? "?"} كجم', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.patient.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  'العمر: ${widget.patient.age ?? "?"} | الوزن: ${widget.patient.weight ?? "?"} كجم | الطول: ${widget.patient.height ?? "?"} سم',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -293,13 +337,13 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               children: [
                 const Text('الأدوية والمواعيد:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ...condition.medicines.map((m) => _buildMedicineRow(condition, m)),
-                TextButton(onPressed: () => _showAddMedicineDialog(condition), child: const Text('+ إضافة دواء', style: TextStyle(fontSize: 11))),
+                TextButton(onPressed: () => _showAddMedicineDialog(condition), child: const Text('إضافة دواء جديد', style: TextStyle(fontSize: 11))),
                 const Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('التحاليل والتطور:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    TextButton(onPressed: () => _showAddLabTestDialog(condition.id), child: const Text('+ جدولة تحليل', style: TextStyle(fontSize: 11))),
+                    TextButton(onPressed: () => _showAddLabTestDialog(condition.id), child: const Text('جدولة تحليل جديد', style: TextStyle(fontSize: 11))),
                   ],
                 ),
                 ...tests.map((t) => _buildTestMiniCard(t)),
@@ -314,36 +358,75 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   }
 
   Widget _buildMedicineRow(ChronicCondition condition, Medicine m) {
-    String timeText = m.remindType == MedicineRemindType.fixed ? m.time.format(context) : 'كل ${24 ~/ m.frequencyPerDay} ساعات';
+    String timeText = "";
+    if (m.remindType == MedicineRemindType.fixed) {
+      timeText = m.time.format(context);
+    } else if (m.remindType == MedicineRemindType.prayer) {
+      timeText = 'مع صلاة ${m.linkedPrayer}';
+    } else {
+      timeText = 'كل ${24 ~/ m.frequencyPerDay} ساعات';
+    }
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.medication, size: 20, color: Colors.blue),
       title: Text(m.name, style: const TextStyle(fontSize: 13)),
       subtitle: Text('${m.dose} • $timeText', style: const TextStyle(fontSize: 10)),
-      trailing: Checkbox(
-        value: m.status == MedicineStatus.taken,
-        onChanged: (v) async {
-          final updatedMed = m.copyWith(status: v! ? MedicineStatus.taken : MedicineStatus.pending, lastTakenAt: v ? DateTime.now() : null);
-          final meds = List<Medicine>.from(condition.medicines);
-          meds[meds.indexWhere((item) => item.id == m.id)] = updatedMed;
-          await HealthService.saveCondition(ChronicCondition(
-            id: condition.id, patientId: condition.patientId, personName: condition.personName,
-            conditionName: condition.conditionName, medicines: meds, notes: condition.notes,
-          ));
-          if (v && updatedMed.remindType == MedicineRemindType.interval) {
-             final nextTime = DateTime.now().add(Duration(minutes: (24 / updatedMed.frequencyPerDay * 60).toInt()));
-             await NotificationService.scheduleNotification(
-               id: updatedMed.id.hashCode.abs(), 
-               title: '⏰ موعد دواء: ${updatedMed.name}', 
-               body: 'حان موعد جرعة ${updatedMed.dose}', 
-               time: nextTime,
-               repeatable: false,
-             );
-          }
-          _loadData();
-        },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Checkbox(
+            value: m.status == MedicineStatus.taken,
+            onChanged: (v) async {
+              final updatedMed = m.copyWith(status: v! ? MedicineStatus.taken : MedicineStatus.pending, lastTakenAt: v ? DateTime.now() : null);
+              final meds = List<Medicine>.from(condition.medicines);
+              meds[meds.indexWhere((item) => item.id == m.id)] = updatedMed;
+              await HealthService.saveCondition(ChronicCondition(
+                id: condition.id, patientId: condition.patientId, personName: condition.personName,
+                conditionName: condition.conditionName, weight: condition.weight, height: condition.height,
+                medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
+              ));
+              if (v && updatedMed.remindType == MedicineRemindType.interval) {
+                 final nextTime = DateTime.now().add(Duration(minutes: (24 / updatedMed.frequencyPerDay * 60).toInt()));
+                 await NotificationService.scheduleNotification(
+                   id: updatedMed.id.hashCode.abs(), 
+                   title: '⏰ موعد دواء: ${updatedMed.name}', 
+                   body: 'حان موعد جرعة ${updatedMed.dose}', 
+                   time: nextTime,
+                   repeatable: false,
+                 );
+              }
+              _loadData();
+            },
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+            onSelected: (val) {
+              if (val == 'edit') _showAddMedicineDialog(condition, medicine: m);
+              if (val == 'delete') _deleteMedicine(condition, m);
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('تعديل', style: TextStyle(fontSize: 12))])),
+              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 16, color: Colors.red), SizedBox(width: 8), Text('حذف', style: TextStyle(fontSize: 12, color: Colors.red))])),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  void _deleteMedicine(ChronicCondition condition, Medicine medicine) async {
+    final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف الدواء', message: 'هل تريد حذف ${medicine.name}؟');
+    if (confirm == true) {
+      final meds = List<Medicine>.from(condition.medicines)..removeWhere((m) => m.id == medicine.id);
+      await HealthService.saveCondition(ChronicCondition(
+        id: condition.id, patientId: condition.patientId, personName: condition.personName,
+        conditionName: condition.conditionName, weight: condition.weight, height: condition.height,
+        medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
+      ));
+      await NotificationService.cancelNotification(medicine.id.hashCode.abs());
+      _loadData();
+    }
   }
 
   Widget _buildTestMiniCard(GradualLabTest test) {
@@ -357,7 +440,19 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(test.testName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.add_chart, size: 16), onPressed: () => _showAddLabResultDialog(test)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(onPressed: () => _showAddLabResultDialog(test), child: const Text('تسجيل', style: TextStyle(fontSize: 10))),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red), 
+                    onPressed: () async {
+                      final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف التحليل', message: 'هل تريد حذف ${test.testName}؟');
+                      if (confirm == true) { await HealthService.deleteLabTest(test.id); _loadData(); }
+                    }
+                  ),
+                ],
+              ),
             ],
           ),
           if (test.results.isNotEmpty)
@@ -393,16 +488,17 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 
-  void _showAddMedicineDialog(ChronicCondition condition) {
-    final nameController = TextEditingController();
-    final doseController = TextEditingController();
-    final freqController = TextEditingController(text: '1');
-    TimeOfDay time = TimeOfDay.now();
-    MedicineRemindType remindType = MedicineRemindType.fixed;
+  void _showAddMedicineDialog(ChronicCondition condition, {Medicine? medicine}) {
+    final nameController = TextEditingController(text: medicine?.name);
+    final doseController = TextEditingController(text: medicine?.dose);
+    final freqController = TextEditingController(text: medicine?.frequencyPerDay.toString() ?? '1');
+    TimeOfDay time = medicine != null ? TimeOfDay(hour: medicine.hour, minute: medicine.minute) : TimeOfDay.now();
+    MedicineRemindType remindType = medicine?.remindType ?? MedicineRemindType.fixed;
+    String? selectedPrayer = medicine?.linkedPrayer;
 
     ModernDialog.show(
       context: context,
-      title: 'إضافة دواء',
+      title: medicine == null ? 'إضافة دواء' : 'تعديل دواء',
       content: StatefulBuilder(
         builder: (context, setModalState) => Column(
           mainAxisSize: MainAxisSize.min,
@@ -411,15 +507,26 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             TextField(controller: doseController, decoration: const InputDecoration(labelText: 'الجرعة')),
             DropdownButtonFormField<MedicineRemindType>(
               value: remindType,
-              items: const [DropdownMenuItem(value: MedicineRemindType.fixed, child: Text('وقت ثابت')), DropdownMenuItem(value: MedicineRemindType.interval, child: Text('تكرار يومي'))],
+              items: const [
+                DropdownMenuItem(value: MedicineRemindType.fixed, child: Text('وقت ثابت')), 
+                DropdownMenuItem(value: MedicineRemindType.interval, child: Text('تكرار يومي')),
+                DropdownMenuItem(value: MedicineRemindType.prayer, child: Text('مرتبط بصلاة 🕋')),
+              ],
               onChanged: (v) => setModalState(() => remindType = v!),
-              decoration: const InputDecoration(labelText: 'النوع'),
+              decoration: const InputDecoration(labelText: 'نظام التذكير'),
             ),
             if (remindType == MedicineRemindType.fixed)
               ListTile(title: Text('الموعد: ${time.format(context)}'), trailing: const Icon(Icons.access_time), onTap: () async {
                 final p = await showTimePicker(context: context, initialTime: time);
                 if (p != null) setModalState(() => time = p);
               })
+            else if (remindType == MedicineRemindType.prayer)
+              DropdownButtonFormField<String>(
+                value: selectedPrayer,
+                decoration: const InputDecoration(labelText: 'اختر الصلاة'),
+                items: ['الفجر', 'الشروق', 'الضحى', 'الظهر', 'العصر', 'المغرب', 'العشاء'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
+                onChanged: (v) => setModalState(() => selectedPrayer = v!),
+              )
             else
               TextField(controller: freqController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات في اليوم')),
           ],
@@ -429,12 +536,66 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
         ElevatedButton(onPressed: () async {
           if (nameController.text.isNotEmpty) {
-            final m = Medicine(id: const Uuid().v4(), name: nameController.text, dose: doseController.text, hour: time.hour, minute: time.minute, frequencyPerDay: int.tryParse(freqController.text) ?? 1, remindType: remindType);
-            final meds = List<Medicine>.from(condition.medicines)..add(m);
-            await HealthService.saveCondition(ChronicCondition(id: condition.id, patientId: condition.patientId, personName: condition.personName, conditionName: condition.conditionName, medicines: meds));
+            int h = time.hour;
+            int min = time.minute;
+            
+            if (remindType == MedicineRemindType.prayer && selectedPrayer != null) {
+              final pTime = PrayerService.getPrayerTime(selectedPrayer!);
+              if (pTime != null) {
+                h = pTime.hour;
+                min = pTime.minute;
+              }
+            }
+
+            final m = medicine?.copyWith(
+              name: nameController.text,
+              dose: doseController.text,
+              hour: h,
+              minute: min,
+              remindType: remindType,
+              linkedPrayer: selectedPrayer,
+            ) ?? Medicine(
+              id: const Uuid().v4(), 
+              name: nameController.text, 
+              dose: doseController.text, 
+              hour: h, 
+              minute: min, 
+              frequencyPerDay: int.tryParse(freqController.text) ?? 1, 
+              remindType: remindType,
+              linkedPrayer: selectedPrayer,
+            );
+            
+            final meds = List<Medicine>.from(condition.medicines);
+            if (medicine != null) {
+              meds[meds.indexWhere((item) => item.id == medicine.id)] = m;
+            } else {
+              meds.add(m);
+            }
+            
+            await HealthService.saveCondition(ChronicCondition(
+              id: condition.id, 
+              patientId: condition.patientId, 
+              personName: condition.personName, 
+              conditionName: condition.conditionName, 
+              weight: condition.weight,
+              height: condition.height,
+              medicines: meds,
+              sideEffects: condition.sideEffects,
+              notes: condition.notes,
+            ));
+            
+            // Re-schedule notifications
             if (remindType == MedicineRemindType.fixed) {
                await NotificationService.scheduleNotification(id: m.id.hashCode.abs(), title: '⏰ دواء: ${m.name}', body: 'جرعة ${m.dose}', time: TimeOfDay(hour: m.hour, minute: m.minute));
+            } else if (remindType == MedicineRemindType.prayer && selectedPrayer != null) {
+               await NotificationService.schedulePersonalReminder(
+                 id: m.id, title: '⏰ دواء: ${m.name}', body: 'حان موعد جرعة ${m.dose}', 
+                 reminderType: ReminderType.prayer, prayer: selectedPrayer,
+               );
+            } else {
+              await NotificationService.cancelNotification(m.id.hashCode.abs());
             }
+
             Navigator.pop(context);
             _loadData();
           }

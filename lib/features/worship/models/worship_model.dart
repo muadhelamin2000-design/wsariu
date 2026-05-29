@@ -88,9 +88,12 @@ class WorshipItem {
   final int? reminderHour;
   final int? reminderMinute;
   final int? flexibleStartHour;
+  final int? flexibleStartMinute;
   final int? flexibleEndHour;
+  final int? flexibleEndMinute;
   final int? flexibleCount;
   final String? linkedPrayer;
+  final String? customReminderMessage;
 
   WorshipItem({
     required this.id,
@@ -113,9 +116,12 @@ class WorshipItem {
     this.reminderHour,
     this.reminderMinute,
     this.flexibleStartHour,
+    this.flexibleStartMinute,
     this.flexibleEndHour,
+    this.flexibleEndMinute,
     this.flexibleCount,
     this.linkedPrayer,
+    this.customReminderMessage,
   });
 
   TimeOfDay? get reminderTime => (reminderHour != null && reminderMinute != null)
@@ -144,9 +150,12 @@ class WorshipItem {
       'reminderHour': reminderHour,
       'reminderMinute': reminderMinute,
       'flexibleStartHour': flexibleStartHour,
+      'flexibleStartMinute': flexibleStartMinute,
       'flexibleEndHour': flexibleEndHour,
+      'flexibleEndMinute': flexibleEndMinute,
       'flexibleCount': flexibleCount,
       'linkedPrayer': linkedPrayer,
+      'customReminderMessage': customReminderMessage,
     };
   }
 
@@ -154,8 +163,8 @@ class WorshipItem {
     return WorshipItem(
       id: map['id'],
       userId: map['userId'] ?? '',
-      sectionId: map['sectionId'],
-      name: map['name'],
+      sectionId: map['sectionId'] ?? '',
+      name: map['name'] ?? '',
       type: WorshipItemType.values[map['type'] ?? 0],
       basePoints: (map['basePoints'] as num?)?.toDouble() ?? 10.0,
       unitName: map['unitName'],
@@ -174,9 +183,12 @@ class WorshipItem {
       reminderHour: map['reminderHour'],
       reminderMinute: map['reminderMinute'],
       flexibleStartHour: map['flexibleStartHour'],
+      flexibleStartMinute: map['flexibleStartMinute'],
       flexibleEndHour: map['flexibleEndHour'],
+      flexibleEndMinute: map['flexibleEndMinute'],
       flexibleCount: map['flexibleCount'],
       linkedPrayer: map['linkedPrayer'],
+      customReminderMessage: map['customReminderMessage'],
     );
   }
 
@@ -198,10 +210,13 @@ class WorshipItem {
     int? reminderHour,
     int? reminderMinute,
     int? flexibleStartHour,
+    int? flexibleStartMinute,
     int? flexibleEndHour,
+    int? flexibleEndMinute,
     int? flexibleCount,
     String? sectionId,
     String? linkedPrayer,
+    String? customReminderMessage,
     bool clearReminder = false,
   }) {
     return WorshipItem(
@@ -225,14 +240,16 @@ class WorshipItem {
       reminderHour: clearReminder ? null : (reminderHour ?? this.reminderHour),
       reminderMinute: clearReminder ? null : (reminderMinute ?? this.reminderMinute),
       flexibleStartHour: clearReminder ? null : (flexibleStartHour ?? this.flexibleStartHour),
+      flexibleStartMinute: clearReminder ? null : (flexibleStartMinute ?? this.flexibleStartMinute),
       flexibleEndHour: clearReminder ? null : (flexibleEndHour ?? this.flexibleEndHour),
+      flexibleEndMinute: clearReminder ? null : (flexibleEndMinute ?? this.flexibleEndMinute),
       flexibleCount: clearReminder ? null : (flexibleCount ?? this.flexibleCount),
       linkedPrayer: clearReminder ? null : (linkedPrayer ?? this.linkedPrayer),
+      customReminderMessage: customReminderMessage ?? this.customReminderMessage,
     );
   }
 
   bool isRequiredOn(DateTime date) {
-    // 1. Calculate days since creation
     final daysSinceCreation = date.difference(DateTime(createdAt.year, createdAt.month, createdAt.day)).inDays;
     if (daysSinceCreation < 0) return false;
 
@@ -242,14 +259,11 @@ class WorshipItem {
       case WorshipRecurrence.everyOtherDay:
         return daysSinceCreation % 2 == 0;
       case WorshipRecurrence.specificDays:
-        // Adjust to Saturday-indexed days if needed, but Flutter/Dart uses 1=Mon, 7=Sun
-        // Our specificDays are 0=Sat, 1=Sun, 2=Mon... (based on HabitsScreen.fullArabicDays)
-        // Saturday in Dart is 6.
-        int day = date.weekday; // 1=Mon... 6=Sat, 7=Sun
+        int day = date.weekday; 
         int habitIndex;
-        if (day == 6) habitIndex = 0; // Sat
-        else if (day == 7) habitIndex = 1; // Sun
-        else habitIndex = day + 1; // Mon=2, Tue=3...
+        if (day == 6) habitIndex = 0; 
+        else if (day == 7) habitIndex = 1; 
+        else habitIndex = day + 1;
         return specificDays.contains(habitIndex);
       case WorshipRecurrence.interval:
         return daysSinceCreation % intervalValue == 0;

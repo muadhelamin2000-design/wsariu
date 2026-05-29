@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/incremental_habit_model.dart';
+import '../models/habit_model.dart';
 import 'notification_service.dart';
 import '../../profile/services/user_service.dart';
 import '../../dashboard/services/prayer_service.dart';
@@ -35,15 +36,23 @@ class IncrementalHabitService {
     final box = Hive.box(boxName);
     await box.put(habit.id, habit.toMap());
 
-    if (habit.reminderTime != null) {
+    if (habit.reminderType == ReminderType.fixed && habit.reminderTime != null) {
       await NotificationService.scheduleNotification(
-        id: habit.id.hashCode,
+        id: habit.id.hashCode.abs(),
         title: 'موعد تحدي وتزودوا: ${habit.title}',
         body: 'حان الوقت للتقدم في تحدي ${habit.title}',
         time: habit.reminderTime!,
       );
+    } else if (habit.reminderType == ReminderType.prayer && habit.linkedPrayer != null) {
+      await NotificationService.schedulePersonalReminder(
+        id: habit.id, 
+        title: 'تحدي وتزودوا: ${habit.title}', 
+        body: 'حان موعد التقدم في تحدي ${habit.title}', 
+        reminderType: ReminderType.prayer, 
+        prayer: habit.linkedPrayer!,
+      );
     } else {
-      await NotificationService.cancelNotification(habit.id.hashCode);
+      await NotificationService.cancelNotification(habit.id.hashCode.abs());
     }
   }
 

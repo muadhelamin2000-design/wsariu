@@ -13,6 +13,7 @@ import '../../core/widgets/quick_link_navigator.dart';
 import '../../core/widgets/modern_dialog.dart';
 import '../../core/services/theme_service.dart';
 import '../dashboard/services/screen_time_service.dart';
+import '../../core/widgets/self_dialogue_widget.dart';
 
 // Fixed file structure
 import '../../core/mixins/help_feature_mixin.dart';
@@ -62,6 +63,7 @@ class _AddictionScreenState extends State<AddictionScreen> with HelpFeatureMixin
       ),
       body: Column(
         children: [
+          const SelfDialogueWidget(),
           QuickLinkNavigator(currentPageId: 'addiction'),
           // البروز الخارجي للحديث الشريف
           Container(
@@ -721,7 +723,7 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
         children: [
           const Padding(padding: EdgeInsets.all(16), child: Text('إضافة بند جديد', style: TextStyle(fontWeight: FontWeight.bold))),
           ListTile(
-            leading: const Icon(Icons.add_circle_outline, color: Colors.blue),
+            leading: const Icon(Icons.radio_button_checked, color: Colors.blue),
             title: const Text('بند خاص (نصي)'),
             onTap: () async {
               Navigator.pop(context);

@@ -10,6 +10,7 @@ import 'services/navigation_service.dart';
 import 'services/screen_time_service.dart';
 import 'services/proactive_assistant_service.dart';
 import 'services/smart_report_service.dart';
+import '../discipline/services/notification_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/app_theme.dart';
 import '../../core/mixins/help_feature_mixin.dart';
@@ -126,7 +127,9 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 12),
             _buildSeasonalAlert(isDark),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -197,7 +200,7 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
       message = "خير أيام الدنيا، أكثر / أكثري من التكبير والتهليل والتحميد.";
       icon = Icons.mosque_outlined;
     } else if (DateTime.now().weekday == DateTime.friday) {
-      title = "جمعة مباركة ✨";
+      title = "جمعة مباركة 🌙";
       message = "لا تنسَ / تنسي سورة الكهف والصلاة على النبي ﷺ.";
       icon = Icons.auto_awesome;
     }
@@ -330,60 +333,84 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final isHouseBuilt = SunanService.isHouseBuiltToday();
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBF5),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
       ),
       child: Column(
         children: [
+          // Row 1: Prayer Names
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: times.keys.map((name) {
+              bool isNext = name == next;
+              return Expanded(
+                child: Center(
+                  child: Text(name, 
+                    style: TextStyle(fontSize: 9, color: isNext ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.7), fontWeight: isNext ? FontWeight.bold : FontWeight.normal)
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          // Row 2: Prayer Times
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: times.entries.map((e) {
               bool isNext = e.key == next;
-              final prayerSunan = SunanService.getSunanForPrayer(e.key);
-              
-              return Column(
-                children: [
-                  Text(e.key, style: TextStyle(fontSize: 10, color: isNext ? const Color(0xFFC8A24A) : Colors.grey)),
-                  const SizedBox(height: 8),
-                  Text(DateFormat.jm('ar').format(e.value), 
-                    style: TextStyle(fontSize: 12, fontWeight: isNext ? FontWeight.bold : FontWeight.normal)
+              return Expanded(
+                child: Center(
+                  child: Text(DateFormat.jm('ar').format(e.value).replaceAll('ص', 'ص').replaceAll('م', 'م'), 
+                    style: TextStyle(fontSize: 10, fontWeight: isNext ? FontWeight.bold : FontWeight.w500, color: isNext ? const Color(0xFFC8A24A) : (isDark ? Colors.white70 : Colors.black87))
                   ),
-                  const SizedBox(height: 12),
-                  // Sunan Bricks
-                  if (prayerSunan.isNotEmpty)
-                    Row(
-                      children: prayerSunan.entries.map((s) {
-                        final key = '${e.key}_${s.key}';
-                        final currentCount = sunanProgress[key] ?? 0;
-                        final targetCount = s.value;
-                        bool isDone = currentCount >= targetCount;
-                        
-                        return GestureDetector(
-                          onTap: () async {
-                            await SunanService.updateProgress(e.key, s.key, isDone ? 0 : targetCount);
-                            _onDataChanged();
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDone ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3)),
-                            ),
-                            child: Text('${s.value}', style: TextStyle(fontSize: 8, color: isDone ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                ],
+                ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // Row 3: Sunan Bricks
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: times.keys.map((name) {
+              var prayerSunan = SunanService.getSunanForPrayer(name);
+              
+              return Expanded(
+                child: Center(
+                  child: prayerSunan.isEmpty 
+                    ? const SizedBox(height: 18)
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: prayerSunan.entries.map((s) {
+                          final key = '${name}_${s.key}';
+                          final currentCount = sunanProgress[key] ?? 0;
+                          final targetCount = s.value;
+                          bool isDone = currentCount >= targetCount;
+                          
+                          return GestureDetector(
+                            onTap: () async {
+                              await SunanService.updateProgress(name, s.key, isDone ? 0 : targetCount);
+                              _onDataChanged();
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDone ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3), width: 0.5),
+                              ),
+                              child: Text('${s.value}', style: TextStyle(fontSize: 8, color: isDone ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
           
           // House in Paradise Section
           _buildHouseWidget(totalRakaat, targetRakaat, totalHouses, isHouseBuilt, isDark),
@@ -537,10 +564,12 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             'قَالَ رَسُولُ اللهِ ﷺ:',
             style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
           ),
-          const Text(
-            '«مَنْ صَلَّى لِلَّهِ فِي يَوْمٍ وَلَيْلَةٍ اثْنَتَيْ عَشْرَةَ رَكْعَةً بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»',
+          Text(
+            target == 12 
+              ? '«مَنْ صَلَّى لِلَّهِ فِي يَوْمٍ وَلَيْلَةٍ اثْنَتَيْ عَشْرَةَ رَكْعَةً بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»'
+              : '«مَنْ صَلَّى لِلَّهِ فِي يَوْمِ الْجُمُعَةِ عَشْرَ رَكَعَاتٍ بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»',
             textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: 'Amiri', fontSize: 13, color: Color(0xFFC8A24A), fontWeight: FontWeight.bold),
+            style: const TextStyle(fontFamily: 'Amiri', fontSize: 13, color: Color(0xFFC8A24A), fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -751,5 +780,19 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final nameController = TextEditingController(text: section.name);
     final iconController = TextEditingController(text: section.icon);
     ModernDialog.show(context: context, title: 'تعديل القسم', content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم القسم')), const SizedBox(height: 12), TextField(controller: iconController, decoration: const InputDecoration(labelText: 'الأيقونة (إيموجي)'))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), ElevatedButton(onPressed: () async { if (nameController.text.isNotEmpty) { section.name = nameController.text; section.icon = iconController.text; await PageManagementService.saveSection(section); if (mounted) Navigator.pop(context); } }, child: const Text('حفظ'))]);
+  }
+
+  void _setPrayerAlarm(String name, DateTime time) async {
+    final confirm = await ModernDialog.showConfirm(
+      context: context,
+      title: 'ضبط منبه الصلاة',
+      message: 'هل تريد ضبط منبه الهاتف لوقت $name (${DateFormat.jm('ar').format(time)})؟',
+    );
+    if (confirm == true) {
+      await NotificationService.setSystemAlarm(hour: time.hour, minutes: time.minute);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم ضبط المنبه لـ $name بنجاح')));
+      }
+    }
   }
 }

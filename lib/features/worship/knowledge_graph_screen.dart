@@ -86,7 +86,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
       floatingActionButton: FloatingActionButton(
         onPressed: () => _tabController.index == 0 ? _showAddCategoryDialog() : _showAddNodeDialog(),
         backgroundColor: AppTheme.primaryGreen,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.edit_note, color: Colors.white),
       ),
     );
   }
@@ -218,7 +218,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    IconButton(icon: const Icon(Icons.add_link, color: Colors.blue), onPressed: () => _showLinkNodesDialog(node)),
+                    IconButton(icon: const Icon(Icons.link, color: Colors.blue), onPressed: () => _showLinkNodesDialog(node)),
                     IconButton(icon: const Icon(Icons.edit_note), onPressed: () => _showAddNodeDialog(nodeToEdit: node)),
                     IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _confirmDeleteNode(node)),
                   ],
@@ -295,7 +295,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                 ...benefits.map((b) => ListTile(title: Text(b, fontSize: 13), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => benefits.remove(b))))),
                 Row(children: [
                   Expanded(child: TextField(controller: benefitController, decoration: const InputDecoration(hintText: 'اكتب فائدة...'))),
-                  IconButton(icon: const Icon(Icons.add_circle), onPressed: () {
+                  IconButton(icon: const Icon(Icons.check_circle_outline), onPressed: () {
                     if (benefitController.text.isNotEmpty) setModalState(() { benefits.add(benefitController.text); benefitController.clear(); });
                   })
                 ]),
@@ -304,7 +304,7 @@ class _KnowledgeGraphScreenState extends State<KnowledgeGraphScreen> with Single
                 ...mediaLinks.map((m) => ListTile(title: Text(m, fontSize: 12), trailing: IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => setModalState(() => mediaLinks.remove(m))))),
                 Row(children: [
                   Expanded(child: TextField(controller: mediaController, decoration: const InputDecoration(hintText: 'أضف رابط URL...'))),
-                  IconButton(icon: const Icon(Icons.add_link), onPressed: () {
+                  IconButton(icon: const Icon(Icons.link), onPressed: () {
                     if (mediaController.text.isNotEmpty) setModalState(() { mediaLinks.add(mediaController.text); mediaController.clear(); });
                   })
                 ]),

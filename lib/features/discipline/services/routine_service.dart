@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/routine_model.dart';
+import '../models/habit_model.dart';
 import 'notification_service.dart';
 import '../../profile/services/user_service.dart';
 import '../../dashboard/services/prayer_service.dart';
@@ -40,15 +41,36 @@ class RoutineService {
     final box = Hive.box(boxName);
     await box.put(routine.id, routine.toMap());
     
-    if (routine.reminderTime != null) {
+    if (routine.relatedPrayer != RelatedPrayer.none) {
+      await NotificationService.schedulePersonalReminder(
+        id: routine.id, 
+        title: 'موعد الروتين: ${routine.title}', 
+        body: 'حان الآن موعد الالتزام بـ ${routine.title}', 
+        reminderType: ReminderType.prayer, 
+        prayer: _getPrayerName(routine.relatedPrayer),
+      );
+    } else if (routine.reminderTime != null) {
       await NotificationService.scheduleNotification(
-        id: routine.id.hashCode,
+        id: routine.id.hashCode.abs(),
         title: 'موعد الروتين: ${routine.title}',
         body: 'حان الآن موعد الالتزام بـ ${routine.title}',
         time: routine.reminderTime!,
       );
+    } else {
+      await NotificationService.cancelNotification(routine.id.hashCode.abs());
     }
     WidgetService.updateAllWidgets();
+  }
+
+  static String _getPrayerName(RelatedPrayer p) {
+    switch (p) {
+      case RelatedPrayer.fajr: return 'الفجر';
+      case RelatedPrayer.dhuhr: return 'الظهر';
+      case RelatedPrayer.asr: return 'العصر';
+      case RelatedPrayer.maghrib: return 'المغرب';
+      case RelatedPrayer.isha: return 'العشاء';
+      default: return '';
+    }
   }
 
   static Future<void> deleteRoutine(String id) async {
