@@ -48,14 +48,26 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
       for (var m in condition.medicines) {
         bool shouldReset = false;
         if (m.status == MedicineStatus.taken && m.lastTakenAt != null) {
-          if (m.remindType == MedicineRemindType.fixed) {
-            final lastReset = DateTime(m.lastTakenAt!.year, m.lastTakenAt!.month, m.lastTakenAt!.day, 4);
-            final nextReset = lastReset.add(const Duration(days: 1));
-            if (now.isAfter(nextReset)) shouldReset = true;
-          } else {
-            final intervalHours = 24 / m.frequencyPerDay;
-            final nextDose = m.lastTakenAt!.add(Duration(minutes: (intervalHours * 60).toInt()));
-            if (now.isAfter(nextDose)) shouldReset = true;
+          final doseTimes = m.getDoseTimes();
+          for (var t in doseTimes) {
+            DateTime doseDT = DateTime(now.year, now.month, now.day, t.hour, t.minute);
+            // إذا كان وقت الجرعة قد مضى ولم يؤخذ الدواء بعده، نعيده لحالة الانتظار
+            if (now.isAfter(doseDT) && m.lastTakenAt!.isBefore(doseDT)) {
+              shouldReset = true;
+              break;
+            }
+          }
+          
+          // تعامل خاص للجرعات التي كانت في وقت متأخر من الأمس
+          if (!shouldReset) {
+             DateTime yesterday = now.subtract(const Duration(days: 1));
+             for (var t in doseTimes) {
+               DateTime doseDT = DateTime(yesterday.year, yesterday.month, yesterday.day, t.hour, t.minute);
+               if (now.isAfter(doseDT) && m.lastTakenAt!.isBefore(doseDT)) {
+                 shouldReset = true;
+                 break;
+               }
+             }
           }
         }
 
@@ -364,14 +376,15 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     } else if (m.remindType == MedicineRemindType.prayer) {
       timeText = 'مع صلاة ${m.linkedPrayer}';
     } else {
-      timeText = 'كل ${24 ~/ m.frequencyPerDay} ساعات';
+      final nextDose = m.getNextDoseTime();
+      timeText = '${m.frequencyPerDay} مرات يومياً (القادم: ${nextDose.format(context)})';
     }
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.medication, size: 20, color: Colors.blue),
-      title: Text(m.name, style: const TextStyle(fontSize: 13)),
-      subtitle: Text('${m.dose} • $timeText', style: const TextStyle(fontSize: 10)),
+      title: Text(m.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+      subtitle: Text('${m.dose} • $timeText', style: const TextStyle(fontSize: 10, color: Colors.grey)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -387,19 +400,6 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                   medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
                 ));
                 
-                // لضمان استمرارية التنبيهات حتى لو لم يتم التأشير على الجرعة الحالية
-                // نقوم بجدولة التنبيه القادم دائماً في حالة الـ Interval
-                if (updatedMed.remindType == MedicineRemindType.interval) {
-                   final intervalHours = 24 / updatedMed.frequencyPerDay;
-                   final nextTime = DateTime.now().add(Duration(minutes: (intervalHours * 60).toInt()));
-                   await NotificationService.scheduleNotification(
-                     id: updatedMed.id.hashCode.abs(), 
-                     title: '⏰ موعد دواء: ${updatedMed.name}', 
-                     body: 'حان موعد جرعة ${updatedMed.dose}', 
-                     time: nextTime,
-                     repeatable: false, // يتم تجديده في كل مرة
-                   );
-                }
                 _loadData();
               },
             ),
@@ -428,7 +428,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
         conditionName: condition.conditionName, weight: condition.weight, height: condition.height,
         medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
       ));
-      await NotificationService.cancelNotification(medicine.id.hashCode.abs());
+      await NotificationService.cancelMedicineReminders(medicine.id);
       _loadData();
     }
   }
@@ -519,20 +519,24 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               onChanged: (v) => setModalState(() => remindType = v!),
               decoration: const InputDecoration(labelText: 'نظام التذكير'),
             ),
-            if (remindType == MedicineRemindType.fixed)
-              ListTile(title: Text('الموعد: ${time.format(context)}'), trailing: const Icon(Icons.access_time), onTap: () async {
-                final p = await showTimePicker(context: context, initialTime: time);
-                if (p != null) setModalState(() => time = p);
-              })
+            if (remindType == MedicineRemindType.fixed || remindType == MedicineRemindType.interval)
+              ListTile(
+                title: Text(remindType == MedicineRemindType.fixed ? 'الموعد: ${time.format(context)}' : 'موعد أول جرعة: ${time.format(context)}'), 
+                trailing: const Icon(Icons.access_time), 
+                onTap: () async {
+                  final p = await showTimePicker(context: context, initialTime: time);
+                  if (p != null) setModalState(() => time = p);
+                }
+              )
             else if (remindType == MedicineRemindType.prayer)
               DropdownButtonFormField<String>(
                 value: selectedPrayer,
                 decoration: const InputDecoration(labelText: 'اختر الصلاة'),
                 items: ['الفجر', 'الشروق', 'الضحى', 'الظهر', 'العصر', 'المغرب', 'العشاء'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                 onChanged: (v) => setModalState(() => selectedPrayer = v!),
-              )
-            else
-              TextField(controller: freqController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات في اليوم')),
+              ),
+            if (remindType == MedicineRemindType.interval)
+              TextField(controller: freqController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'كم مرة في اليوم؟')),
           ],
         ),
       ),
@@ -589,18 +593,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             ));
             
             // Re-schedule notifications
-            if (remindType == MedicineRemindType.fixed) {
-               await NotificationService.scheduleNotification(id: m.id.hashCode.abs(), title: '⏰ دواء: ${m.name}', body: 'جرعة ${m.dose}', time: TimeOfDay(hour: m.hour, minute: m.minute));
-            } else if (remindType == MedicineRemindType.prayer && selectedPrayer != null) {
-               await NotificationService.schedulePersonalReminder(
-                 id: m.id, title: '⏰ دواء: ${m.name}', body: 'حان موعد جرعة ${m.dose}', 
-                 reminderType: ReminderType.prayer, prayer: selectedPrayer,
-               );
-            } else {
-              await NotificationService.cancelNotification(m.id.hashCode.abs());
-            }
+            await NotificationService.scheduleMedicineReminders(m);
 
-            Navigator.pop(context);
+            Navigator.of(context, rootNavigator: true).pop();
             _loadData();
           }
         }, child: const Text('حفظ')),

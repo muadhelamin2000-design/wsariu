@@ -14,6 +14,7 @@ import '../../core/widgets/modern_dialog.dart';
 import '../../core/services/theme_service.dart';
 import '../dashboard/services/screen_time_service.dart';
 import '../../core/widgets/self_dialogue_widget.dart';
+import '../../core/widgets/modern_link_picker.dart';
 
 // Fixed file structure
 import '../../core/mixins/help_feature_mixin.dart';
@@ -226,15 +227,16 @@ class _AddictionScreenState extends State<AddictionScreen> with HelpFeatureMixin
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
+        TextButton(onPressed: () { Navigator.of(context, rootNavigator: true).pop(); }, child: const Text('إلغاء', style: TextStyle(color: Colors.grey))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.white),
           onPressed: () async {
-            if (titleController.text.isNotEmpty && UserService.currentUser != null) {
+            if (titleController.text.isNotEmpty) {
+              final String userId = UserService.currentUser?.id ?? 'default_user';
               final aiContent = AddictionService.generateAIContent(titleController.text);
               final habit = AddictionHabit(
                 id: const Uuid().v4(),
-                userId: UserService.currentUser!.id,
+                userId: userId,
                 title: titleController.text,
                 type: AddictionType.absolute,
                 startDate: DateTime.now(),
@@ -244,7 +246,7 @@ class _AddictionScreenState extends State<AddictionScreen> with HelpFeatureMixin
               );
               await AddictionService.saveHabit(habit);
               if (mounted) {
-                Navigator.pop(context);
+                Navigator.of(context, rootNavigator: true).pop();
                 _loadHabits();
               }
             }
@@ -650,7 +652,7 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () { Navigator.of(context, rootNavigator: true).pop(); }, child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
@@ -670,7 +672,7 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
                 
                 await AddictionService.saveHabit(updated);
                 _refresh();
-                if (mounted) Navigator.pop(context);
+                if (mounted) Navigator.of(context, rootNavigator: true).pop();
               }
             },
             child: const Text('إضافة الكل'),
@@ -718,72 +720,12 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
   void _showAddItemOptions(String listType) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(padding: EdgeInsets.all(16), child: Text('إضافة بند جديد', style: TextStyle(fontWeight: FontWeight.bold))),
-          ListTile(
-            leading: const Icon(Icons.radio_button_checked, color: Colors.blue),
-            title: const Text('بند خاص (نصي)'),
-            onTap: () async {
-              Navigator.pop(context);
-              final res = await ModernDialog.showInput(context: context, title: 'إضافة بند', hint: 'مثلاً: الشعور بالملل');
-              if (res != null && res.isNotEmpty) _addItem(listType, ZadItem(id: const Uuid().v4(), name: res));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.check_circle_outline, color: Colors.green),
-            title: const Text('ربط عادة'),
-            onTap: () {
-              Navigator.pop(context);
-              _showLinkPicker(listType, 'habit');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.mosque_outlined, color: Colors.orange),
-            title: const Text('ربط عبادة'),
-            onTap: () {
-              Navigator.pop(context);
-              _showLinkPicker(listType, 'worship');
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  void _showLinkPicker(String listType, String type) {
-    List<Map<String, dynamic>> items = [];
-    if (type == 'habit') {
-      items = HabitService.getHabits().map((e) => {'id': e.id, 'name': e.name}).toList();
-    } else {
-      items = WorshipService.getItems().map((e) => {'id': e.id, 'name': e.name}).toList();
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('اختر ${type == 'habit' ? 'العادة' : 'العبادة'}'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: items.length,
-            itemBuilder: (context, index) => ListTile(
-              title: Text(items[index]['name']),
-              onTap: () {
-                Navigator.pop(context);
-                _addItem(listType, ZadItem(
-                  id: const Uuid().v4(), 
-                  name: items[index]['name'], 
-                  type: type == 'habit' ? ZadItemType.habit : ZadItemType.worship,
-                  linkedId: items[index]['id'],
-                ));
-              },
-            ),
-          ),
-        ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ModernLinkPicker(
+        onItemPicked: (item) {
+          _addItem(listType, item);
+        },
       ),
     );
   }
@@ -918,7 +860,7 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(onPressed: () { Navigator.of(context, rootNavigator: true).pop(); }, child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
@@ -939,7 +881,7 @@ class _AddictionDetailScreenState extends State<AddictionDetailScreen> {
 
                 await AddictionService.saveHabit(updated);
                 _refresh();
-                if (mounted) Navigator.pop(context);
+                if (mounted) Navigator.of(context, rootNavigator: true).pop();
               }
             },
             child: const Text('إضافة الكل'),

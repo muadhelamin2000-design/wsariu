@@ -132,7 +132,7 @@ class PageManagementService {
     final defaults = [
       SectionItem(key: 'spiritual', name: 'الجانب الروحي', icon: '🕌'),
       SectionItem(key: 'psychological', name: 'الجانب النفسي', icon: '🌿'),
-      SectionItem(key: 'physical', name: 'شفاء', icon: '🛡️'),
+      SectionItem(key: 'physical', name: 'الجانب البدني', icon: '🛡️'),
       SectionItem(key: 'mental', name: 'الجانب العقلي', icon: '🧠'),
     ];
     for (var s in defaults) {

@@ -98,7 +98,7 @@ class AppRouter {
       // 3. الجانب البدني (physical)
       GoRoute(
         path: '/health',
-        builder: (context, state) => const SectionScreen(title: 'شفاء', sectionKey: 'physical'),
+        builder: (context, state) => const SectionScreen(title: 'الجانب البدني', sectionKey: 'physical'),
         routes: [
           GoRoute(path: 'nutrition', builder: (context, state) => const NutritionScreen()),
           GoRoute(path: 'sports', builder: (context, state) => const WorkoutScreen()),

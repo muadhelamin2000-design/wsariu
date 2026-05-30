@@ -82,6 +82,40 @@ class Medicine {
 
   TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
 
+  List<TimeOfDay> getDoseTimes() {
+    if (remindType != MedicineRemindType.interval || frequencyPerDay <= 1) {
+      return [time];
+    }
+    
+    List<TimeOfDay> times = [];
+    double intervalMinutes = (24 * 60) / frequencyPerDay;
+    int startTotalMinutes = hour * 60 + minute;
+    
+    for (int i = 0; i < frequencyPerDay; i++) {
+      int currentTotalMinutes = (startTotalMinutes + (i * intervalMinutes).toInt()) % (24 * 60);
+      times.add(TimeOfDay(hour: currentTotalMinutes ~/ 60, minute: currentTotalMinutes % 60));
+    }
+    // Sort times to make finding "next" easier
+    times.sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+    return times;
+  }
+
+  TimeOfDay getNextDoseTime() {
+    final times = getDoseTimes();
+    if (times.length <= 1) return times.first;
+    
+    final now = TimeOfDay.now();
+    final nowMins = now.hour * 60 + now.minute;
+    
+    for (var t in times) {
+      if ((t.hour * 60 + t.minute) > nowMins) {
+        return t;
+      }
+    }
+    // If none are after now, the next one is the first one tomorrow
+    return times.first;
+  }
+
   Map<String, dynamic> toMap() => {
     'id': id,
     'name': name,

@@ -39,6 +39,58 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
     {'id': '8', 'name': 'الأكل الثقيل ليلًا', 'isGood': false, 'selected': false},
   ];
 
+  final List<Map<String, dynamic>> _propheticHabits = [
+    {
+      'id': 'ph1', 
+      'name': 'الوضوء قبل النوم', 
+      'evidence': 'قال النبي صلى الله عليه وسلم: "إِذَا أَتَيْتَ مَضْجَعَكَ فَتَوَضَّأْ وُضُوءَكَ لِلصَّلَاةِ"', 
+      'type': 'sleep', 
+      'selected': false
+    },
+    {
+      'id': 'ph2', 
+      'name': 'النوم على الجانب الأيمن', 
+      'evidence': 'عن البراء بن عازب رضي الله عنه قال: قال النبي صلى الله عليه وسلم: "ثم اضطجع على شقك الأيمن"', 
+      'type': 'sleep', 
+      'selected': false
+    },
+    {
+      'id': 'ph3', 
+      'name': 'التكبير والتسبيح والتحميد', 
+      'evidence': 'قال النبي صلى الله عليه وسلم: "إذا أويتما إلى فراشكما فسبحا ثلاثاً وثلاثين واحمدا ثلاثاً وثلاثين وكبرا أربعاً وثلاثين"', 
+      'type': 'sleep', 
+      'selected': false
+    },
+    {
+      'id': 'ph4', 
+      'name': 'نفض الفراش', 
+      'evidence': 'قال النبي صلى الله عليه وسلم: "إِذَا أَوَى أَحَدُكُمْ إِلَى فِرَاشِهِ فَلْيَنْفُضْ فِرَاشَهُ بِدَاخِلَةِ إِزَارِهِ، فَإِنَّهُ لَا يَدْرِي مَا خَلَفَهُ عَلَيْهِ"', 
+      'type': 'sleep', 
+      'selected': false
+    },
+    {
+      'id': 'ph5', 
+      'name': 'الحمد لله عند الاستيقاظ', 
+      'evidence': 'قال النبي صلى الله عليه وسلم: "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ"', 
+      'type': 'wake', 
+      'selected': false
+    },
+    {
+      'id': 'ph6', 
+      'name': 'مسح أثر النوم عن الوجه', 
+      'evidence': 'كان النبي صلى الله عليه وسلم "يستيقظ من نومه فيمسح النوم عن وجهه بيده"', 
+      'type': 'wake', 
+      'selected': false
+    },
+    {
+      'id': 'ph7', 
+      'name': 'السواك عند الاستيقاظ', 
+      'evidence': 'كان النبي صلى الله عليه وسلم "إذا قام من الليل يشوص فاه بالسواك"', 
+      'type': 'wake', 
+      'selected': false
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +108,11 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
         _habits.clear();
         _habits.addAll(savedHabitList.map((e) => Map<String, dynamic>.from(e)).toList());
       }
+      final savedPropheticList = settings['propheticHabits'] as List?;
+      if (savedPropheticList != null && savedPropheticList.isNotEmpty) {
+        _propheticHabits.clear();
+        _propheticHabits.addAll(savedPropheticList.map((e) => Map<String, dynamic>.from(e)).toList());
+      }
     });
   }
 
@@ -64,6 +121,7 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
       'waitMinutes': _waitMinutes,
       'selectedLibraryCategoryId': _selectedLibraryCategoryId,
       'allHabits': _habits,
+      'propheticHabits': _propheticHabits,
     });
   }
 
@@ -115,6 +173,8 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
             _buildHabitsSection(isDark, true),
             const SizedBox(height: 16),
             _buildHabitsSection(isDark, false),
+            const SizedBox(height: 24),
+            _buildPropheticHabitsSection(isDark),
             const SizedBox(height: 24),
             _buildQualityBar(isDark),
             const SizedBox(height: 24),
@@ -347,6 +407,7 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
     await SleepService.saveEntry(updated);
     setState(() {
       for (var h in _habits) h['selected'] = false;
+      for (var h in _propheticHabits) h['selected'] = false;
       _activeEntry = null;
     });
     _saveSettings();
@@ -359,8 +420,10 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
   double _calculateExpectedQuality() {
     int good = _habits.where((h) => h['isGood'] && h['selected']).length;
     int bad = _habits.where((h) => !h['isGood'] && h['selected']).length;
-    if (good == 0 && bad == 0) return 0.0;
-    double result = (50.0 + (good * 10) - (bad * 10));
+    int prophetic = _propheticHabits.where((h) => h['selected']).length;
+    
+    if (good == 0 && bad == 0 && prophetic == 0) return 0.0;
+    double result = (50.0 + (good * 10) + (prophetic * 5) - (bad * 10));
     return result.clamp(0.0, 100.0);
   }
 
@@ -737,6 +800,170 @@ class _SleepIntelligenceScreenState extends State<SleepIntelligenceScreen> {
   void _deleteEntry(SleepEntry e) async {
     await SleepService.deleteEntry(e.id);
     setState(() {});
+  }
+
+  Widget _buildPropheticHabitsSection(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'هدي النبي ﷺ في النوم والاستيقاظ 🕌',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _showAddPropheticHabitDialog,
+                icon: const Icon(Icons.auto_stories, size: 16),
+                label: const Text('إضافة سُنة', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPropheticSubSection('آداب النوم 🌙', 'sleep', isDark),
+          const Divider(height: 32),
+          _buildPropheticSubSection('آداب الاستيقاظ ☀️', 'wake', isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPropheticSubSection(String title, String type, bool isDark) {
+    final filtered = _propheticHabits.where((h) => h['type'] == type).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFC8A24A))),
+        const SizedBox(height: 8),
+        if (filtered.isEmpty)
+          const Text('لا توجد عادات مضافة', style: TextStyle(fontSize: 10, color: Colors.grey))
+        else
+          ...filtered.map((h) => _buildPropheticItem(h, isDark)),
+      ],
+    );
+  }
+
+  Widget _buildPropheticItem(Map<String, dynamic> habit, bool isDark) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Checkbox(
+        value: habit['selected'],
+        onChanged: (val) {
+          setState(() => habit['selected'] = val);
+          _saveSettings();
+        },
+        activeColor: const Color(0xFFC8A24A),
+      ),
+      title: Text(habit['name'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+      subtitle: habit['evidence'] != null && habit['evidence'].isNotEmpty 
+          ? Text(habit['evidence'], style: const TextStyle(fontSize: 10, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis) 
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (habit['evidence'] != null && habit['evidence'].isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.info_outline, size: 16, color: Color(0xFFC8A24A)),
+              onPressed: () => ModernDialog.showInfo(context: context, title: habit['name'], message: habit['evidence']),
+            ),
+          IconButton(
+            icon: const Icon(Icons.edit, size: 16),
+            onPressed: () => _showAddPropheticHabitDialog(habit: habit),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+            onPressed: () {
+              setState(() => _propheticHabits.removeWhere((h) => h['id'] == habit['id']));
+              _saveSettings();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPropheticHabitDialog({Map<String, dynamic>? habit}) {
+    final isEdit = habit != null;
+    final nameController = TextEditingController(text: habit?['name']);
+    final evidenceController = TextEditingController(text: habit?['evidence']);
+    String type = habit?['type'] ?? 'sleep';
+
+    ModernDialog.show(
+      context: context,
+      title: isEdit ? 'تعديل الهدي النبوي' : 'إضافة من الهدي النبوي',
+      content: StatefulBuilder(
+        builder: (context, setModalState) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم السُنة / الأدب')),
+            const SizedBox(height: 12),
+            TextField(
+              controller: evidenceController, 
+              maxLines: 3, 
+              decoration: const InputDecoration(labelText: 'الدليل / الفضل', hintText: 'اكتب الحديث أو الأثر هنا...'),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text('النوع:', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 12),
+                ChoiceChip(
+                  label: const Text('نوم'),
+                  selected: type == 'sleep',
+                  onSelected: (val) => setModalState(() => type = 'sleep'),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('استيقاظ'),
+                  selected: type == 'wake',
+                  onSelected: (val) => setModalState(() => type = 'wake'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(
+          onPressed: () async {
+            if (nameController.text.isNotEmpty) {
+              if (isEdit) {
+                setState(() {
+                  habit['name'] = nameController.text.trim();
+                  habit['evidence'] = evidenceController.text.trim();
+                  habit['type'] = type;
+                });
+              } else {
+                setState(() {
+                  _propheticHabits.add({
+                    'id': const Uuid().v4(),
+                    'name': nameController.text.trim(),
+                    'evidence': evidenceController.text.trim(),
+                    'type': type,
+                    'selected': false,
+                  });
+                });
+              }
+              _saveSettings();
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('حفظ'),
+        ),
+      ],
+    );
   }
 
   void _editEntry(SleepEntry e) async {

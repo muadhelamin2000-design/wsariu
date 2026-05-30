@@ -51,6 +51,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:flutter/services.dart';
 
 import 'features/worship/services/qiyam_service.dart';
+import 'features/worship/services/qiyam_content_service.dart';
 import 'features/worship/services/season_service.dart';
 
 void main() async {
@@ -122,6 +123,7 @@ void main() async {
     ScreenTimeService.init(),
     BadgeService.init(),
     QiyamService.init(),
+    QiyamContentService.init(),
     SeasonService.init(),
     UsageService.init(),
   ]);

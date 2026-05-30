@@ -10,6 +10,8 @@ import '../../core/widgets/modern_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'services/qiyam_content_service.dart';
+
 class QiyamTrackerScreen extends StatefulWidget {
   const QiyamTrackerScreen({super.key});
 
@@ -26,18 +28,51 @@ class _QiyamTrackerScreenState extends State<QiyamTrackerScreen> {
   int _elapsedSeconds = 0;
   List<QiyamSession> _history = [];
 
-  final List<Map<String, String>> _inspirations = [
-    {'text': '«عَلَيْكُمْ بِقِيَامِ اللَّيْلِ، فَإِنَّهُ دَأْبُ الصَّالِحِينَ قَبْلَكُمْ»', 'source': 'حديث شريف'},
-    {'text': '«أَفْضَلُ الصَّلَاةِ بَعْدَ الْفَرِيضَةِ صَلَاةُ اللَّيْلِ»', 'source': 'حديث شريف'},
-    {'text': '«كان النبي ﷺ يقوم من الليل حتى تتفطر قدماه»', 'source': 'هدي نبوي'},
-    {'text': 'قيام الليل مدرسة الإخلاص ومحراب الصادقين.', 'source': 'قلم'},
-    {'text': '﴿تَتَجافىٰ جُنوبُهُم عَنِ المَضاجِعِ يَدعونَ رَبَّهُم خَوفًا وَطَمَعًا﴾', 'source': 'السجدة: ١٦'},
+  final List<Map<String, dynamic>> _propheticGuidance = [
+    {
+      'id': 'qg1', 
+      'name': 'نية قيام الليل عند النوم', 
+      'evidence': 'عن عائشة رضي الله عنها، أن رسول الله صلى الله عليه وسلم قال: "ما من امرئ تكون له صلاة بليل، يغلبه عليها نوم، إلا كتب له أجر صلاته، وكان نومه عليه صدقة" (صحيح أبي داود)', 
+      'selected': false
+    },
+    {
+      'id': 'qg2', 
+      'name': 'السواك عند القيام', 
+      'evidence': 'عن حذيفة رضي الله عنه، قال: "كان النبي صلى الله عليه وسلم إذا قام من الليل يشوص فاه بالسواك" (صحيح البخاري)', 
+      'selected': false
+    },
+    {
+      'id': 'qg3', 
+      'name': 'افتتاح القيام بركعتين خفيفتين', 
+      'evidence': 'عن عائشة رضي الله عنها، قالت: "كان رسول الله صلى الله عليه وسلم إذا قام من الليل ليصلي، افتتح صلاته بركعتين خفيفتين" (صحيح مسلم)', 
+      'selected': false
+    },
   ];
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    _loadGuidanceSettings();
+  }
+
+  void _loadGuidanceSettings() {
+    final box = Hive.box(QiyamContentService.boxName);
+    final saved = box.get('prophetic_guidance_selection');
+    if (saved != null) {
+      final List savedList = saved;
+      for (var item in _propheticGuidance) {
+        if (savedList.contains(item['id'])) {
+          item['selected'] = true;
+        }
+      }
+    }
+  }
+
+  void _saveGuidanceSettings() {
+    final box = Hive.box(QiyamContentService.boxName);
+    final selectedIds = _propheticGuidance.where((i) => i['selected']).map((i) => i['id']).toList();
+    box.put('prophetic_guidance_selection', selectedIds);
   }
 
   void _loadHistory() {
@@ -160,16 +195,95 @@ class _QiyamTrackerScreenState extends State<QiyamTrackerScreen> {
           children: [
             _buildInspirationCard(),
             const SizedBox(height: 24),
+            _buildPropheticGuidanceSection(),
+            const SizedBox(height: 24),
             _buildTimerDisplay(),
             const SizedBox(height: 24),
             _buildControls(),
             const SizedBox(height: 32),
-            _buildChartSection(), // إضافة الرسم البياني هنا
+            _buildChartSection(),
             const SizedBox(height: 32),
             _buildHistorySection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPropheticGuidanceSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryGreen.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('هدي النبي ﷺ في قيام الليل 🕌', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryGreen)),
+          const SizedBox(height: 12),
+          ..._propheticGuidance.map((item) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Checkbox(
+              value: item['selected'],
+              onChanged: (val) {
+                setState(() => item['selected'] = val);
+                _saveGuidanceSettings();
+              },
+              activeColor: AppTheme.primaryGreen,
+            ),
+            title: Text(item['name'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            trailing: IconButton(
+              icon: const Icon(Icons.info_outline, size: 18, color: AppTheme.primaryGreen),
+              onPressed: () => ModernDialog.showInfo(context: context, title: item['name'], message: item['evidence']),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInspirationCard() {
+    final inspirations = QiyamContentService.getDailyInspirationTriple();
+    final verse = inspirations['verse']!;
+    final hadith = inspirations['hadith']!;
+    final saying = inspirations['saying']!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFC8A24A).withOpacity(0.1), 
+        borderRadius: BorderRadius.circular(24), 
+        border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3))
+      ),
+      child: Column(
+        children: [
+          _buildInspirationItem('📖 آية', verse['text']!, verse['source']!),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFC8A24A), thickness: 0.2)),
+          _buildInspirationItem('💬 حديث', hadith['text']!, hadith['source']!),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFC8A24A), thickness: 0.2)),
+          _buildInspirationItem('📜 من أقوال السلف', saying['text']!, saying['source']!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInspirationItem(String title, String text, String source) {
+    return Column(
+      children: [
+        Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFC8A24A))),
+        const SizedBox(height: 8),
+        Text(
+          text, 
+          textAlign: TextAlign.center, 
+          style: const TextStyle(fontFamily: 'Amiri', fontSize: 15, fontWeight: FontWeight.bold, height: 1.5)
+        ),
+        const SizedBox(height: 4),
+        Text(source, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+      ],
     );
   }
 
@@ -239,21 +353,6 @@ class _QiyamTrackerScreenState extends State<QiyamTrackerScreen> {
         ),
         const Center(child: Text('الوقت بالدقائق', style: TextStyle(fontSize: 10, color: Colors.grey))),
       ],
-    );
-  }
-
-  Widget _buildInspirationCard() {
-    final ins = (_inspirations..shuffle()).first;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFFC8A24A).withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3))),
-      child: Column(
-        children: [
-          Text(ins['text']!, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Amiri', fontSize: 18, fontWeight: FontWeight.bold, height: 1.5)),
-          const SizedBox(height: 8),
-          Text(ins['source']!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-        ],
-      ),
     );
   }
 

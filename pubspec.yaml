@@ -64,8 +64,14 @@ flutter_launcher_icons:
   min_sdk_android: 21
 
 flutter_native_splash:
-  color: "#070B14" 
+  color: "#0F172A"
+  image: "assets/icon.png"
+  android_12:
+    color: "#0F172A"
+    image: "assets/icon.png"
   fullscreen: true
+  android_gravity: center
+  ios_content_mode: center
 
 flutter:
   uses-material-design: true
