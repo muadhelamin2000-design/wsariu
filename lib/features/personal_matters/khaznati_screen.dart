@@ -150,10 +150,11 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
   }
 
   void _showItemOptions(dynamic item, String type) {
+    final screenContext = context;
     showModalBottomSheet(
-      context: context,
+      context: screenContext,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => SafeArea(
+      builder: (modalContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -161,7 +162,7 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
               leading: const Icon(Icons.edit),
               title: const Text('تعديل'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(modalContext);
                 if (type == 'subs') {
                   _showAddSubscriptionDialog(sub: item as Subscription);
                 } else {
@@ -173,8 +174,14 @@ class _KhaznatiScreenState extends State<KhaznatiScreen> {
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text('حذف', style: TextStyle(color: Colors.red)),
               onTap: () async {
-                Navigator.pop(context);
-                final confirm = await ModernDialog.showConfirm(context: context, title: 'حذف', message: 'هل أنت متأكد من الحذف؟');
+                Navigator.pop(modalContext);
+                final confirm = await ModernDialog.showConfirm(
+                  context: screenContext, 
+                  title: 'حذف السجل', 
+                  message: 'هل أنت متأكد من حذف هذا السجل؟',
+                  confirmLabel: 'حذف',
+                  isDestructive: true,
+                );
                 if (confirm == true) {
                   if (type == 'subs') await PersonalMattersService.deleteSubscription(item.id);
                   else await PersonalMattersService.deleteTransaction(item.id);

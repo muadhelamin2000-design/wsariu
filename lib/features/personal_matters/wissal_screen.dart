@@ -117,6 +117,7 @@ class _WissalScreenState extends State<WissalScreen> with HelpFeatureMixin {
               children: [
                 TextButton(onPressed: () => _showAddPersonDialog(list), child: const Text('إضافة شخص')),
                 TextButton(onPressed: () => _callRemaining(list), child: const Text('من التالي؟')),
+                IconButton(icon: const Icon(Icons.edit_outlined, color: Colors.blue), onPressed: () => _showAddRelListDialog(list: list)),
                 IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _confirmDeleteRelList(list)),
               ],
             ),
@@ -344,6 +345,13 @@ class _WissalScreenState extends State<WissalScreen> with HelpFeatureMixin {
     final phoneController = TextEditingController(text: person?.phone);
     final subCatController = TextEditingController(text: person?.subCategory);
     
+    // الحصول على الفروع الموجودة فعلياً في هذه القائمة
+    final List<String> existingSubCats = list.members
+        .map((m) => m.subCategory)
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+
     ReminderType reminderType = person?.reminderType ?? ReminderType.fixed;
     TimeOfDay? reminderTime = person?.reminderHour != null ? TimeOfDay(hour: person!.reminderHour!, minute: person.reminderMinute!) : null;
     String? linkedPrayer = person?.linkedPrayer;
@@ -358,7 +366,28 @@ class _WissalScreenState extends State<WissalScreen> with HelpFeatureMixin {
           children: [
             TextField(controller: nameController, decoration: const InputDecoration(labelText: 'الاسم')),
             TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف')),
-            TextField(controller: subCatController, decoration: const InputDecoration(labelText: 'القسم الفرعي (اختياري)')),
+            
+            const SizedBox(height: 16),
+            const Text('الفرع / القسم الفرعي', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            if (existingSubCats.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: existingSubCats.contains(subCatController.text) ? subCatController.text : null,
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('بدون فرع (عام)')),
+                  ...existingSubCats.map((s) => DropdownMenuItem(value: s, child: Text(s))),
+                ],
+                onChanged: (v) => setModalState(() => subCatController.text = v ?? ''),
+                decoration: const InputDecoration(hintText: 'اختر فرعاً موجوداً'),
+              ),
+            TextField(
+              controller: subCatController, 
+              decoration: const InputDecoration(
+                labelText: 'أو اكتب فرعاً جديداً',
+                hintText: 'مثال: فرع القاهرة، العائلة الكبيرة...'
+              ),
+              onChanged: (v) => setModalState(() {}), // لتحديث حالة الـ Dropdown إذا تطابق النص
+            ),
+
             const Divider(height: 32),
             const Text('إعدادات التذكير والتنبيه', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accentGold)),
             const SizedBox(height: 8),

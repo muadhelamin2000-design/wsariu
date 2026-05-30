@@ -286,20 +286,27 @@ class _DialoguesScreenState extends State<DialoguesScreen> with SingleTickerProv
   }
 
   void _showCategoryOptions(MemoCategory cat) {
+    final screenContext = context;
     showModalBottomSheet(
-      context: context,
-      builder: (context) => Column(
+      context: screenContext,
+      builder: (modalContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),
             title: const Text('حذف القسم', style: TextStyle(color: Colors.red)),
             onTap: () async {
-              final res = await ModernDialog.showConfirm(context: context, title: 'حذف القسم', message: 'هل تريد حذف قسم "${cat.name}" نهائياً؟');
+              Navigator.pop(modalContext);
+              final res = await ModernDialog.showConfirm(
+                context: screenContext, 
+                title: 'حذف القسم', 
+                message: 'هل تريد حذف قسم "${cat.name}" نهائياً بما يحتويه؟',
+                confirmLabel: 'حذف',
+                isDestructive: true,
+              );
               if (res == true) {
                 await MemoService.deleteCategory(cat.id);
                 _loadData();
-                Navigator.pop(context);
               }
             },
           ),
