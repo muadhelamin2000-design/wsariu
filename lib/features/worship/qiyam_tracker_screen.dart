@@ -318,8 +318,10 @@ class _QiyamTrackerScreenState extends State<QiyamTrackerScreen> {
             title: Text(intl.DateFormat('EEEE, d MMMM', 'ar').format(s.date), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
             subtitle: Text('صلاة: ${s.totalPrayerMinutes}د • استراحة: ${s.totalBreakMinutes}د', style: const TextStyle(fontSize: 11)),
             trailing: IconButton(icon: const Icon(Icons.delete_outline, size: 18), onPressed: () async {
-              await Hive.box(QiyamService.boxName).delete(s.id);
-              _loadHistory();
+              if (await ModernDialog.showConfirm(context: context, title: 'حذف السجل', message: 'هل تريد حذف سجل هذا اليوم؟') == true) {
+                await QiyamService.deleteSessionByDate(s.date);
+                _loadHistory();
+              }
             }),
           ),
         )),

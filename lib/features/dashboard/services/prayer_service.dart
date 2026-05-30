@@ -41,6 +41,23 @@ class PrayerService {
     return now;
   }
 
+  static DateTime getIslamicDayStartTime() {
+    final prayerTimes = _getTodayTimes();
+    final now = DateTime.now();
+    
+    if (now.isBefore(prayerTimes.fajr)) {
+      // نحن قبل فجر اليوم، إذاً بداية اليوم الإسلامي الحالي كانت فجر "أمس"
+      final yesterday = now.subtract(const Duration(days: 1));
+      final myCoordinates = Coordinates(latitude, longitude);
+      final params = CalculationMethod.egyptian.getParameters();
+      params.madhab = Madhab.shafi;
+      final yesterdayTimes = PrayerTimes(myCoordinates, DateComponents.from(yesterday), params);
+      return yesterdayTimes.fajr;
+    }
+    // نحن بعد الفجر، بداية اليوم هي فجر اليوم
+    return prayerTimes.fajr;
+  }
+
   static String getIslamicDayKey() {
     final date = getIslamicDayDate();
     return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";

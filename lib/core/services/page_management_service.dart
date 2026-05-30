@@ -106,7 +106,7 @@ class PageManagementService {
     final settingsBox = await Hive.openBox('settings_box');
     final currentVersion = settingsBox.get('pages_structure_version', defaultValue: 0);
     
-    if (currentVersion < 9) {
+    if (currentVersion < 11) {
       await Hive.box(boxName).clear();
       await Hive.box(sectionBoxName).clear();
       // فتح صندوق شريط التنقل قبل مسحه لتجنب خطأ Box not found
@@ -114,7 +114,7 @@ class PageManagementService {
       await navBox.clear();
       await _seedDefaultSections();
       await _seedDefaultPages();
-      await settingsBox.put('pages_structure_version', 9);
+      await settingsBox.put('pages_structure_version', 11);
     }
   }
 
@@ -132,7 +132,7 @@ class PageManagementService {
     final defaults = [
       SectionItem(key: 'spiritual', name: 'الجانب الروحي', icon: '🕌'),
       SectionItem(key: 'psychological', name: 'الجانب النفسي', icon: '🌿'),
-      SectionItem(key: 'physical', name: 'الجانب البدني', icon: '💪'),
+      SectionItem(key: 'physical', name: 'شفاء', icon: '🛡️'),
       SectionItem(key: 'mental', name: 'الجانب العقلي', icon: '🧠'),
     ];
     for (var s in defaults) {
@@ -170,17 +170,8 @@ class PageManagementService {
       PageItem(id: 'secret', name: 'سر مع الله', route: '/worship/sir-ma3-allah', iconData: '🤍', sectionKey: 'spiritual'),
       PageItem(id: 'zad', name: 'البنيان', route: '/worship/zad-maad', iconData: '🪜', sectionKey: 'spiritual'),
       
-      // 2. الجانب العقلي (mental)
-      PageItem(id: 'linked', name: 'المذاكرة المترابطة', route: '/learning/linked-studies', iconData: '🕸️', sectionKey: 'mental'),
-      PageItem(id: 'habits', name: 'العادات', route: '/discipline/habits', iconData: '✅', sectionKey: 'mental'),
-      PageItem(id: 'incremental', name: 'وتزودوا', route: '/discipline/incremental-habits', iconData: '📈', sectionKey: 'mental'),
-      PageItem(id: 'progress', name: 'متابعة التقدم', route: '/discipline/progress', iconData: '📊', sectionKey: 'mental'),
-      PageItem(id: 'routine', name: 'الروتين اليومي', route: '/discipline/daily-routine', iconData: '🔄', sectionKey: 'mental'),
-      PageItem(id: 'tasks', name: 'المهام السريعة', route: '/discipline/quick-tasks', iconData: '⚡', sectionKey: 'mental'),
-      PageItem(id: 'sessions', name: 'جلسات الدراسة', route: '/learning/study-sessions', iconData: '⏲️', sectionKey: 'mental'),
-
-      // 3. الجانب البدني (physical)
-      PageItem(id: 'healthcare', name: 'لبدنك عليك حق ولاهلك عليك حق', route: '/health/care', iconData: '🩺', sectionKey: 'physical'),
+      // 3. الجانب البدني (physical) -> شفاء
+      PageItem(id: 'healthcare', name: 'تداوو', route: '/health/care', iconData: '🩺', sectionKey: 'physical'),
       PageItem(id: 'nutrition', name: 'التغذية', route: '/health/nutrition', iconData: '🥗', sectionKey: 'physical'),
       PageItem(id: 'sports', name: 'الرياضة', route: '/health/sports', iconData: '🏋️', sectionKey: 'physical'),
       PageItem(id: 'sleep', name: 'النوم الذكي', iconData: '🌙', route: '/health/sleep', sectionKey: 'physical'),

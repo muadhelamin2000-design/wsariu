@@ -10,6 +10,8 @@ import 'services/navigation_service.dart';
 import 'services/screen_time_service.dart';
 import 'services/proactive_assistant_service.dart';
 import 'services/smart_report_service.dart';
+import '../usage_stats/services/usage_service.dart';
+import '../usage_stats/models/usage_models.dart';
 import '../discipline/services/notification_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/app_theme.dart';
@@ -176,6 +178,8 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             const SizedBox(height: 32),
             _buildWirdSection(bundle, isDark),
             const SizedBox(height: 32),
+            _buildUsageSummaryCard(isDark),
+            const SizedBox(height: 32),
             _buildPrayerSection(prayerTimes, nextPrayerStr, isDark),
             const SizedBox(height: 24),
             _buildNightSection(nightTimes, isDark),
@@ -202,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     } else if (DateTime.now().weekday == DateTime.friday) {
       title = "جمعة مباركة 🌙";
       message = "لا تنسَ / تنسي سورة الكهف والصلاة على النبي ﷺ.";
-      icon = Icons.auto_awesome;
+      icon = Icons.event_available_outlined;
     }
 
     if (title == null) return const SizedBox.shrink();
@@ -321,6 +325,53 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUsageSummaryCard(bool isDark) {
+    return FutureBuilder<DailyUsageSummary>(
+      future: UsageService.getTodayUsage(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final usage = snapshot.data!;
+        final hours = usage.totalScreenTime.inHours;
+        final minutes = usage.totalScreenTime.inMinutes % 60;
+        final score = UsageService.calculateDisciplineScore(usage);
+
+        return InkWell(
+          onTap: () => context.push('/learning/phone-usage'),
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.phone_android, color: Colors.blue, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('وقت الشاشة اليوم 📱', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('$hours ساعة و $minutes دقيقة • انضباط: $score%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -560,6 +611,30 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             ],
           ),
           const SizedBox(height: 12),
+          if (DateTime.now().weekday == DateTime.friday)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'ملحوظة: سنة الجمعة الراتبة أربع ركعات بعد الصلاة، وليس لها سنة راتبة قبلية.',
+                        style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           const Text(
             'قَالَ رَسُولُ اللهِ ﷺ:',
             style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
@@ -682,12 +757,23 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             icon: tab.emoji != null ? Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(tab.emoji!, style: const TextStyle(fontSize: 18)),
-            ) : Icon(tab.icon), 
+            ) : Icon(_getTabIcon(tab.id)), 
             label: tab.label
           )).toList(),
         ),
       ),
     );
+  }
+
+  IconData _getTabIcon(String id) {
+    switch (id) {
+      case 'browser': return Icons.language_outlined;
+      case 'spiritual': return Icons.mosque_outlined;
+      case 'psychological': return Icons.spa_outlined;
+      case 'physical': return Icons.fitness_center_outlined;
+      case 'mental': return Icons.psychology_outlined;
+      default: return Icons.home_outlined;
+    }
   }
 
   void _showGlobalSearch() {

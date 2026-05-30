@@ -9,12 +9,15 @@ import '../../health/services/health_service.dart';
 import '../../discipline/services/incremental_habit_service.dart';
 import '../../worship/services/addiction_service.dart';
 import '../../learning/services/study_session_service.dart';
+import '../../learning/models/memo_model.dart' show MemoType, MemoNote;
 import '../../learning/services/memo_service.dart';
-import '../../learning/models/memo_model.dart';
 import '../../profile/services/life_link_service.dart';
 import '../../profile/models/life_link_model.dart';
 import '../../library/services/library_service.dart';
 import '../../library/models/library_models.dart';
+import 'package:hive/hive.dart';
+import '../../usage_stats/services/usage_service.dart';
+import '../../usage_stats/models/usage_models.dart';
 import 'prayer_service.dart';
 
 class SmartReportService {
@@ -171,10 +174,10 @@ class SmartReportService {
     }
 
     // --- 11. البيانات (القرارات والمكافآت) ---
-    final todaysData = MemoService.getAllMemos().where((m) => m.type == MemoType.data && _isSameDay(m.date, date)).toList();
+    final todaysData = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && _isSameDay(m.dateCreated, date)).toList();
     for (var d in todaysData) {
-      if (d.dataCategory == 'قرارات') positives.add("سجلت قراراً جديداً: ${d.content}");
-      if (d.dataCategory == 'مكافآت') positives.add("حددت لنفسك مكافأة: ${d.content}");
+      if (d.dataCategory == 'قرارات') positives.add("سجلت قراراً جديداً: ${d.title}");
+      if (d.dataCategory == 'مكافآت') positives.add("حددت لنفسك مكافأة: ${d.title}");
     }
 
     // --- 12. العلاقات والربط الذكي ---
@@ -189,6 +192,23 @@ class SmartReportService {
         }
       }
     }
+
+    // --- 13. استخدام الهاتف (جديد) ---
+    try {
+      // بما أن generateDailyReport قد تعمل لتاريخ سابق، سنحاول جلب البيانات من Hive
+      final usageBox = Hive.box(UsageService.boxName);
+      final usageData = usageBox.get(dateKey);
+      if (usageData != null) {
+        final usage = DailyUsageSummary.fromMap(Map<dynamic, dynamic>.from(usageData));
+        final hours = usage.totalScreenTime.inHours;
+        if (hours > 5) {
+          negatives.add("استهلاك مرتفع للهاتف اليوم ($hours ساعة).");
+          advice.add("حاول ضبط حدود للتطبيقات الأكثر استهلاكاً لوقتك.");
+        } else if (hours < 3 && hours > 0) {
+          positives.add("تحكم ممتاز في وقت الشاشة اليوم ($hours ساعة فقط).");
+        }
+      }
+    } catch (e) {}
 
     double progress = 0;
     if (maxPossiblePoints > 0) {
@@ -252,29 +272,29 @@ class SmartReportService {
 
     // --- جمع البيانات من المذكرات والحوارات ---
     if (q.contains('مكافآت') || q.contains('مكافأة')) {
-      final data = MemoService.getAllMemos().where((m) => m.type == MemoType.data && m.dataCategory == 'مكافآت').toList();
+      final data = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && m.dataCategory == 'مكافآت').toList();
       if (data.isEmpty) return "لم تسجل أي مكافآت لنفسك بعد في قسم البيانات 🌙.";
-      return "إليك المكافآت التي سجلتها 🌙: \n" + data.map((m) => "- ${m.content}").join('\n');
+      return "إليك المكافآت التي سجلتها 🌙: \n" + data.map((m) => "- ${m.title}").join('\n');
     }
     if (q.contains('عواقب') || q.contains('عقوبات')) {
-      final data = MemoService.getAllMemos().where((m) => m.type == MemoType.data && m.dataCategory == 'عواقب').toList();
+      final data = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && m.dataCategory == 'عواقب').toList();
       if (data.isEmpty) return "لم تسجل أي عواقب في قسم البيانات 🌙.";
-      return "العواقب التي حددتها 🌙: \n" + data.map((m) => "- ${m.content}").join('\n');
+      return "العواقب التي حددتها 🌙: \n" + data.map((m) => "- ${m.title}").join('\n');
     }
     if (q.contains('قرارات') || q.contains('قرار')) {
-      final data = MemoService.getAllMemos().where((m) => m.type == MemoType.data && m.dataCategory == 'قرارات').toList();
+      final data = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && m.dataCategory == 'قرارات').toList();
       if (data.isEmpty) return "لم تسجل أي قرارات حاسمة بعد 🌙.";
-      return "قراراتك المسجلة 🌙: \n" + data.map((m) => "- ${m.content}").join('\n');
+      return "قراراتك المسجلة 🌙: \n" + data.map((m) => "- ${m.title}").join('\n');
     }
     if (q.contains('مفضلات') || q.contains('أحب')) {
-      final data = MemoService.getAllMemos().where((m) => m.type == MemoType.data && m.dataCategory == 'مفضلات').toList();
+      final data = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && m.dataCategory == 'مفضلات').toList();
       if (data.isEmpty) return "لا يوجد مفضلات مسجلة 🌙.";
-      return "الأشياء التي تحبها 🌙: \n" + data.map((m) => "- ${m.content}").join('\n');
+      return "الأشياء التي تحبها 🌙: \n" + data.map((m) => "- ${m.title}").join('\n');
     }
     if (q.contains('صعوبات') || q.contains('تحديات')) {
-      final data = MemoService.getAllMemos().where((m) => m.type == MemoType.data && m.dataCategory == 'صعوبات').toList();
+      final data = MemoService.getNotes(showArchived: true, showDeleted: true).where((m) => m.type == MemoType.data && m.dataCategory == 'صعوبات').toList();
       if (data.isEmpty) return "الحمد لله، لم تسجل أي صعوبات مؤخراً 🌙.";
-      return "التحديات والصعوبات التي واجهتها 🌙: \n" + data.map((m) => "- ${m.content}").join('\n');
+      return "التحديات والصعوبات التي واجهتها 🌙: \n" + data.map((m) => "- ${m.title}").join('\n');
     }
 
     if (q.contains('تفاعل') || q.contains('روابط') || q.contains('تأثير')) {

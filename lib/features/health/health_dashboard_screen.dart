@@ -92,7 +92,7 @@ class _HealthDashboardScreenState extends State<HealthDashboardScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('رعاية وشفاء 🛡️', style: TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold)),
+        title: const Text('تداوو 🛡️', style: TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold)),
         elevation: 0,
       ),
       body: ListView(
@@ -375,30 +375,34 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Checkbox(
-            value: m.status == MedicineStatus.taken,
-            onChanged: (v) async {
-              final updatedMed = m.copyWith(status: v! ? MedicineStatus.taken : MedicineStatus.pending, lastTakenAt: v ? DateTime.now() : null);
-              final meds = List<Medicine>.from(condition.medicines);
-              meds[meds.indexWhere((item) => item.id == m.id)] = updatedMed;
-              await HealthService.saveCondition(ChronicCondition(
-                id: condition.id, patientId: condition.patientId, personName: condition.personName,
-                conditionName: condition.conditionName, weight: condition.weight, height: condition.height,
-                medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
-              ));
-              if (v && updatedMed.remindType == MedicineRemindType.interval) {
-                 final nextTime = DateTime.now().add(Duration(minutes: (24 / updatedMed.frequencyPerDay * 60).toInt()));
-                 await NotificationService.scheduleNotification(
-                   id: updatedMed.id.hashCode.abs(), 
-                   title: '⏰ موعد دواء: ${updatedMed.name}', 
-                   body: 'حان موعد جرعة ${updatedMed.dose}', 
-                   time: nextTime,
-                   repeatable: false,
-                 );
-              }
-              _loadData();
-            },
-          ),
+            Checkbox(
+              value: m.status == MedicineStatus.taken,
+              onChanged: (v) async {
+                final updatedMed = m.copyWith(status: v! ? MedicineStatus.taken : MedicineStatus.pending, lastTakenAt: v ? DateTime.now() : null);
+                final meds = List<Medicine>.from(condition.medicines);
+                meds[meds.indexWhere((item) => item.id == m.id)] = updatedMed;
+                await HealthService.saveCondition(ChronicCondition(
+                  id: condition.id, patientId: condition.patientId, personName: condition.personName,
+                  conditionName: condition.conditionName, weight: condition.weight, height: condition.height,
+                  medicines: meds, notes: condition.notes, sideEffects: condition.sideEffects,
+                ));
+                
+                // لضمان استمرارية التنبيهات حتى لو لم يتم التأشير على الجرعة الحالية
+                // نقوم بجدولة التنبيه القادم دائماً في حالة الـ Interval
+                if (updatedMed.remindType == MedicineRemindType.interval) {
+                   final intervalHours = 24 / updatedMed.frequencyPerDay;
+                   final nextTime = DateTime.now().add(Duration(minutes: (intervalHours * 60).toInt()));
+                   await NotificationService.scheduleNotification(
+                     id: updatedMed.id.hashCode.abs(), 
+                     title: '⏰ موعد دواء: ${updatedMed.name}', 
+                     body: 'حان موعد جرعة ${updatedMed.dose}', 
+                     time: nextTime,
+                     repeatable: false, // يتم تجديده في كل مرة
+                   );
+                }
+                _loadData();
+              },
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
             onSelected: (val) {

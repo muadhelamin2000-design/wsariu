@@ -42,7 +42,7 @@ class _EntertainmentScreenState extends State<EntertainmentScreen> with HelpFeat
     final descController = TextEditingController(text: activity?.description);
     final durationController = TextEditingController(text: activity?.durationMinutes.toString() ?? '15');
     EntertainmentType selectedType = activity?.type ?? EntertainmentType.social;
-    IconData selectedIcon = activity?.icon ?? Icons.mood;
+    String selectedIcon = (activity?.icon as String?) ?? '🎮'; // Explicit cast to handle potential Object inference
 
     ModernDialog.show(
       context: context,
@@ -63,18 +63,24 @@ class _EntertainmentScreenState extends State<EntertainmentScreen> with HelpFeat
                 onChanged: (val) => setModalState(() => selectedType = val!),
               ),
               const SizedBox(height: 16),
-              const Text('اختر أيقونة:', style: TextStyle(fontSize: 12)),
+              const Text('اختر إيموجي:', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 12,
-                children: [Icons.directions_walk, Icons.book, Icons.self_improvement, Icons.call, Icons.play_circle_outline, Icons.restaurant, Icons.wb_sunny_outlined, Icons.mood, Icons.palette, Icons.music_note].map((icon) => GestureDetector(
-                  onTap: () => setModalState(() => selectedIcon = icon),
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: selectedIcon == icon ? AppTheme.primaryGreen : Colors.grey.shade200,
-                    child: Icon(icon, color: selectedIcon == icon ? Colors.white : Colors.grey),
-                  ),
-                )).toList(),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: ['🏃', '📚', '🧘', '📞', '🎬', '🥗', '📿', '🎮', '🎨', '🎵', '🎭', '🚲', '⛵', '🗺️', '📸', '📽️', '🍳', '🏋️'].map((emoji) => GestureDetector(
+                    onTap: () => setModalState(() => selectedIcon = emoji),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: selectedIcon == emoji ? AppTheme.primaryGreen.withOpacity(0.1) : null,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                    ),
+                  )).toList(),
+                ),
               ),
             ],
           ),
@@ -338,7 +344,7 @@ class _EntertainmentScreenState extends State<EntertainmentScreen> with HelpFeat
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(activity.icon, color: AppTheme.primaryGreen, size: 24),
+                Text(activity.icon, style: const TextStyle(fontSize: 24)),
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),

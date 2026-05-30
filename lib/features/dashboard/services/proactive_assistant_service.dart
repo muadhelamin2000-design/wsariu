@@ -33,7 +33,7 @@ class ProactiveAssistantService {
   static SmartMessage getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12 && hour > 4) return SmartMessage("صباح الخير يا بطل / بطلة.. يوم جديد مليء بالفرص ☀️", MessageType.guide);
-    if (hour >= 12 && hour < 17) return SmartMessage("طاب يومكَ / يومكِ.. أنا معكَ / معكِ لتنظيم وقتكَ / وقتكِ ✨", MessageType.guide);
+    if (hour >= 12 && hour < 17) return SmartMessage("طاب يومكَ / يومكِ.. أنا معكَ / معكِ لتنظيم وقتكَ / وقتكِ", MessageType.guide);
     if (hour >= 17 && hour < 21) return SmartMessage("مساء الهمة.. لنراجع إنجازاتنا 🌙", MessageType.guide);
     return SmartMessage("وقت الهدوء.. استعد / استعدي لنوم عميق ومريح 😴", MessageType.guide);
   }

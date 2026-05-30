@@ -27,6 +27,7 @@ import 'features/personal_matters/services/personal_matters_service.dart';
 import 'features/learning/services/study_session_service.dart';
 import 'features/learning/services/memo_service.dart';
 import 'features/learning/services/knowledge_service.dart' as learning_knowledge;
+import 'features/usage_stats/services/usage_service.dart';
 import 'core/services/theme_service.dart';
 import 'core/services/page_management_service.dart';
 import 'features/dashboard/services/dashboard_settings_service.dart';
@@ -122,6 +123,7 @@ void main() async {
     BadgeService.init(),
     QiyamService.init(),
     SeasonService.init(),
+    UsageService.init(),
   ]);
   debugPrint("Services initialized.");
   
