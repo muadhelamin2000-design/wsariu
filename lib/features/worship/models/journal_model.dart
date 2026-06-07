@@ -28,27 +28,27 @@ class JournalEntry {
   final String id;
   final String userId;
   final DateTime date;
-  final String note;
-  final List<String> goodDeeds;
+  final String headline;
+  final String content;
+  final bool isFavorite;
+  final double fontSize;
+  final int colorValue;
+  final int? highlightColorValue;
   final List<MistakeWithEffect> mistakesWithEffects;
   final List<JournalItem> blessings;
-  final List<JournalItem> shortcomings;
-  final String lessonsLearned;
-  final String tomorrowPlan;
-  final SoulState soulState;
 
   JournalEntry({
     required this.id,
     required this.userId,
     required this.date,
-    this.note = '',
-    this.goodDeeds = const [],
+    this.headline = '',
+    this.content = '',
+    this.isFavorite = false,
+    this.fontSize = 16.0,
+    this.colorValue = 0xFF000000,
+    this.highlightColorValue,
     this.mistakesWithEffects = const [],
     this.blessings = const [],
-    this.shortcomings = const [],
-    this.lessonsLearned = '',
-    this.tomorrowPlan = '',
-    this.soulState = SoulState.calm,
   });
 
   Map<String, dynamic> toMap() {
@@ -56,57 +56,62 @@ class JournalEntry {
       'id': id,
       'userId': userId,
       'date': date.toIso8601String(),
-      'note': note,
-      'goodDeeds': goodDeeds,
+      'headline': headline,
+      'content': content,
+      'isFavorite': isFavorite,
+      'fontSize': fontSize,
+      'colorValue': colorValue,
+      'highlightColorValue': highlightColorValue,
       'mistakesWithEffects': mistakesWithEffects.map((e) => e.toMap()).toList(),
       'blessings': blessings.map((e) => e.toMap()).toList(),
-      'shortcomings': shortcomings.map((e) => e.toMap()).toList(),
-      'lessonsLearned': lessonsLearned,
-      'tomorrowPlan': tomorrowPlan,
-      'soulState': soulState.index,
     };
   }
 
   factory JournalEntry.fromMap(Map<dynamic, dynamic> map) {
-    List<MistakeWithEffect> mwe = [];
-    if (map.containsKey('mistakesWithEffects')) {
-      mwe = (map['mistakesWithEffects'] as List).map((e) => MistakeWithEffect.fromMap(e)).toList();
-    } else if (map.containsKey('mistakes')) {
-      mwe = (map['mistakes'] as List).map((e) => MistakeWithEffect(mistake: e.toString(), effect: '')).toList();
-    }
-
-    List<JournalItem> bls = [];
-    if (map.containsKey('blessings')) {
-      final b = map['blessings'] as List;
-      if (b.isNotEmpty && b.first is String) {
-        bls = b.map((e) => JournalItem(text: e.toString())).toList();
-      } else {
-        bls = b.map((e) => JournalItem.fromMap(e)).toList();
-      }
-    }
-
-    List<JournalItem> sht = [];
-    if (map.containsKey('shortcomings')) {
-      final s = map['shortcomings'] as List;
-      if (s.isNotEmpty && s.first is String) {
-        sht = s.map((e) => JournalItem(text: e.toString())).toList();
-      } else {
-        sht = s.map((e) => JournalItem.fromMap(e)).toList();
-      }
-    }
-
     return JournalEntry(
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
       date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
-      note: map['note'] ?? '',
-      goodDeeds: List<String>.from(map['goodDeeds'] ?? []),
-      mistakesWithEffects: mwe,
-      blessings: bls,
-      shortcomings: sht,
-      lessonsLearned: map['lessonsLearned'] ?? '',
-      tomorrowPlan: map['tomorrowPlan'] ?? '',
-      soulState: SoulState.values[map['soulState'] ?? 0],
+      headline: map['headline'] ?? map['note'] ?? '', // Compatibility with old 'note'
+      content: map['content'] ?? '',
+      isFavorite: map['isFavorite'] ?? false,
+      fontSize: (map['fontSize'] as num?)?.toDouble() ?? 16.0,
+      colorValue: map['colorValue'] ?? 0xFF000000,
+      highlightColorValue: map['highlightColorValue'],
+      mistakesWithEffects: (map['mistakesWithEffects'] as List?)
+              ?.map((e) => MistakeWithEffect.fromMap(Map<dynamic, dynamic>.from(e)))
+              .toList() ??
+          [],
+      blessings: (map['blessings'] as List?)
+              ?.map((e) => JournalItem.fromMap(Map<dynamic, dynamic>.from(e)))
+              .toList() ??
+          [],
+    );
+  }
+
+  JournalEntry copyWith({
+    String? headline,
+    String? content,
+    bool? isFavorite,
+    double? fontSize,
+    int? colorValue,
+    int? highlightColorValue,
+    List<MistakeWithEffect>? mistakesWithEffects,
+    List<JournalItem>? blessings,
+    bool clearHighlight = false,
+  }) {
+    return JournalEntry(
+      id: id,
+      userId: userId,
+      date: date,
+      headline: headline ?? this.headline,
+      content: content ?? this.content,
+      isFavorite: isFavorite ?? this.isFavorite,
+      fontSize: fontSize ?? this.fontSize,
+      colorValue: colorValue ?? this.colorValue,
+      highlightColorValue: clearHighlight ? null : (highlightColorValue ?? this.highlightColorValue),
+      mistakesWithEffects: mistakesWithEffects ?? this.mistakesWithEffects,
+      blessings: blessings ?? this.blessings,
     );
   }
 }

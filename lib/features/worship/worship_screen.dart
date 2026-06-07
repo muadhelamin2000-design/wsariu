@@ -8,6 +8,7 @@ import '../dashboard/services/prayer_service.dart';
 import '../../core/widgets/quick_link_navigator.dart';
 import '../../core/app_theme.dart';
 import 'worship_item_detail_screen.dart';
+import 'worship_section_items_screen.dart';
 import '../../core/services/page_management_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/widgets/modern_dialog.dart';
@@ -207,6 +208,10 @@ class _WorshipScreenState extends State<WorshipScreen> with HelpFeatureMixin {
                 '- نقاطك تزداد عند إتمامك للعبادات بانتظام.',
                 pageId: 'worship',
               ),
+              TextButton(
+                onPressed: () => _showAddEditSectionDialog(),
+                child: const Text('إضافة قسم', style: TextStyle(color: Color(0xFFC8A24A), fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
               IconButton(
                 icon: Icon(_showOnlyDueToday ? Icons.filter_alt : Icons.filter_alt_off, color: _showOnlyDueToday ? const Color(0xFFC8A24A) : Colors.grey, size: 20),
                 onPressed: () => setState(() => _showOnlyDueToday = !_showOnlyDueToday),
@@ -358,115 +363,64 @@ class _WorshipScreenState extends State<WorshipScreen> with HelpFeatureMixin {
       }
     }
 
-    // تنسيق خاص لقسم الصلوات ليكون في مستوى واحد
-    bool isPrayersSection = section.name.contains('صلاة') || section.name.contains('صلوات') || section.name.contains('الفرائض');
-
-    return Column(
+    return Card(
       key: key,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-            Expanded(
-              flex: 5,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _isSectionExpanded[section.id] = !(_isSectionExpanded[section.id] ?? false)),
-                  onLongPress: () => _showAddEditSectionDialog(section: section),
-                  child: Row(
-                    children: [
-                      Text(section.emoji, style: const TextStyle(fontSize: 18)),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          section.name, 
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(section.colorValue))
-                        ),
-                      ),
-                      if (section.category == WorshipCategory.independent) ...[
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(color: Color(section.colorValue).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                          child: Text('${sectionScore.toInt()}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-              Expanded(
-                flex: 5,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: Icon(_isSectionExpanded[section.id] ?? false ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
-                      onPressed: () => setState(() => _isSectionExpanded[section.id] = !(_isSectionExpanded[section.id] ?? false)),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.grey), 
-                      onPressed: () => _showAddEditSectionDialog(section: section)
-                    ),
-                    const SizedBox(width: 4),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 4), 
-                        minimumSize: const Size(45, 30), 
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        alignment: Alignment.centerLeft
-                      ),
-                      onPressed: () => _showAddEditItemSheet(section: section),
-                      child: Text('إضافة', style: TextStyle(color: Color(section.colorValue), fontWeight: FontWeight.bold, fontSize: 11)),
-                    ),
-                  ],
-                ),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => WorshipSectionItemsScreen(section: section))).then((_) => _refreshData()),
+        onLongPress: () => _showAddEditSectionDialog(section: section),
+        leading: Text(section.emoji, style: const TextStyle(fontSize: 24)),
+        title: Text(
+          section.name,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(section.colorValue)),
+        ),
+        subtitle: Row(
+          children: [
+            Text('الأعمال: ${items.length}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if (section.category == WorshipCategory.independent) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(color: Color(section.colorValue).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                child: Text('النقاط: ${sectionScore.toInt()}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(section.colorValue))),
               ),
             ],
-          ),
+          ],
         ),
-        if (_isSectionExpanded[section.id] ?? false)
-          isPrayersSection 
-          ? _buildPrayersGrid(section, items)
-          : ReorderableListView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            onReorder: (oldIndex, newIndex) async {
-              setState(() {
-                if (newIndex > oldIndex) newIndex -= 1;
-                final item = items.removeAt(oldIndex);
-                items.insert(newIndex, item);
-                
-                // Update orderIndex for all items in this section
-                for (int i = 0; i < items.length; i++) {
-                  final globalIdx = _items.indexWhere((it) => it.id == items[i].id);
-                  if (globalIdx != -1) {
-                    _items[globalIdx] = items[i].copyWith(orderIndex: i);
-                  }
-                }
-                // Sort _items globally to reflect new orderIndices
-                _items.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-              });
-              await WorshipService.saveItemsOrder(_items);
-              _refreshData();
-            },
-            children: items.where((i) => !_showOnlyDueToday || i.isRequiredOn(PrayerService.getIslamicDayDate())).map((item) => _buildItemCard(item, section, items, key: ValueKey(item.id))).toList(),
-          ),
-        const SizedBox(height: 12),
-      ],
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+              onSelected: (val) {
+                if (val == 'edit') _showAddEditSectionDialog(section: section);
+                if (val == 'delete') _confirmDeleteSection(section);
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('تعديل', style: TextStyle(fontSize: 12))])),
+                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 16, color: Colors.red), SizedBox(width: 8), Text('حذف', style: TextStyle(fontSize: 12, color: Colors.red))])),
+              ],
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
     );
+  }
+
+  void _confirmDeleteSection(WorshipSection section) async {
+    final confirm = await ModernDialog.showConfirm(
+      context: context, 
+      title: 'حذف القسم', 
+      message: 'هل تريد حذف قسم "${section.name}" بكل ما فيه؟ لا يمكن التراجع عن هذا الفعل.', 
+      isDestructive: true
+    );
+    if (confirm == true) {
+      await WorshipService.deleteSection(section.id);
+      _refreshData();
+    }
   }
 
   Widget _buildPrayersGrid(WorshipSection section, List<WorshipItem> items) {

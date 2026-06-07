@@ -73,9 +73,8 @@ class ModernDialog extends StatelessWidget {
         style: const TextStyle(fontSize: 15, height: 1.5),
       ),
       actions: [
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          style: _primaryButtonStyle(const Color(0xFF0F3D2E)),
+        TextButton(
+          onPressed: () { Navigator.of(context, rootNavigator: true).pop(); },
           child: const Text('فهمت'),
         ),
       ],
@@ -102,11 +101,11 @@ class ModernDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: () { Navigator.of(context, rootNavigator: true).pop(false); },
           child: Text(cancelLabel, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
+          onPressed: () { Navigator.of(context, rootNavigator: true).pop(true); },
           style: _primaryButtonStyle(isDestructive ? Colors.red : const Color(0xFF2E7D32)),
           child: Text(confirmLabel),
         ),
@@ -154,11 +153,11 @@ class ModernDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () { Navigator.of(context, rootNavigator: true).pop(); },
           child: const Text('إلغاء', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context, controller.text),
+          onPressed: () { Navigator.of(context, rootNavigator: true).pop(controller.text); },
           style: _primaryButtonStyle(const Color(0xFF2E7D32)),
           child: Text(confirmLabel),
         ),

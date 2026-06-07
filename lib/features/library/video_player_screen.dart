@@ -2,16 +2,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import 'package:flutter/services.dart';
+import 'services/library_service.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final List<String> filePaths;
   final List<String> titles;
+  final List<String>? fileIds;
   final int initialIndex;
 
   const VideoPlayerScreen({
     super.key,
     required this.filePaths,
     required this.titles,
+    this.fileIds,
     this.initialIndex = 0,
   });
 
@@ -36,6 +40,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (!mounted || _videoPlayerController == null) return;
     
     final value = _videoPlayerController!.value;
+    
+    // Save progress periodically
+    if (widget.fileIds != null && widget.fileIds!.length > _currentIndex) {
+       LibraryService.updateCurrentUnit(widget.fileIds![_currentIndex], value.position.inSeconds);
+    }
+
     if (value.isInitialized && 
         value.position >= value.duration && 
         !value.isPlaying) {
@@ -44,7 +54,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _initializePlayer() async {
-    // تنظيف الموارد القديمة
     if (_videoPlayerController != null) {
       _videoPlayerController!.removeListener(_videoListener);
       await _videoPlayerController!.dispose();
@@ -69,16 +78,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _videoPlayerController = VideoPlayerController.file(file);
       await _videoPlayerController!.initialize();
       
+      // Resume from saved progress
+      if (widget.fileIds != null && widget.fileIds!.length > _currentIndex) {
+        final savedFile = LibraryService.getFileById(widget.fileIds![_currentIndex]);
+        if (savedFile != null && savedFile.currentUnit > 0) {
+           await _videoPlayerController!.seekTo(Duration(seconds: savedFile.currentUnit));
+        }
+      }
+
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
         autoPlay: true,
         looping: false,
         aspectRatio: _videoPlayerController!.value.aspectRatio,
+        
+        // السماح بالتدوير يمين وشمال في وضع ملء الشاشة
+        deviceOrientationsOnEnterFullScreen: [
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ],
+        // العودة للوضع الرأسي عند الخروج من ملء الشاشة
+        deviceOrientationsAfterFullScreen: [
+          DeviceOrientation.portraitUp,
+        ],
+
         placeholder: Container(color: Colors.black, child: const Center(child: CircularProgressIndicator())),
         errorBuilder: (context, msg) => Center(child: Text(msg, style: const TextStyle(color: Colors.white))),
       );
 
-      // الاستماع لانتهاء الفيديو للتشغيل التلقائي
       _videoPlayerController!.addListener(_videoListener);
 
       setState(() {});

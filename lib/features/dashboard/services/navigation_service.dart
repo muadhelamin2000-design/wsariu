@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 class NavTab {
   final String id;
   final String label;
-  final IconData? icon;
-  final String? emoji; // دعم الأيقونة النصية (الإيموجي)
+  final int? iconCode; // Store as int
+  final String? emoji; 
   final String route;
   final String sectionKey;
 
   NavTab({
     required this.id,
     required this.label,
-    this.icon,
+    this.iconCode,
     this.emoji,
     required this.route,
     required this.sectionKey,
@@ -21,7 +21,7 @@ class NavTab {
   Map<String, dynamic> toMap() => {
     'id': id,
     'label': label,
-    'icon': icon?.codePoint,
+    'icon': iconCode,
     'emoji': emoji,
     'route': route,
     'sectionKey': sectionKey,
@@ -31,7 +31,7 @@ class NavTab {
     return NavTab(
       id: map['id'],
       label: map['label'],
-      icon: map['icon'] != null ? IconData(map['icon'], fontFamily: 'MaterialIcons') : null,
+      iconCode: map['icon'],
       emoji: map['emoji'],
       route: map['route'],
       sectionKey: map['sectionKey'],
@@ -81,7 +81,7 @@ class NavigationService {
             list[i] = NavTab(
               id: tab.id,
               label: sName,
-              icon: tab.icon,
+              iconCode: tab.iconCode,
               emoji: sEmoji,
               route: tab.route,
               sectionKey: tab.sectionKey,
@@ -119,7 +119,7 @@ class NavigationService {
           currentTabs[i] = NavTab(
             id: tab.id,
             label: sName,
-            icon: tab.icon,
+            iconCode: tab.iconCode,
             emoji: sEmoji,
             route: tab.route,
             sectionKey: tab.sectionKey,
@@ -136,11 +136,11 @@ class NavigationService {
 
   static List<NavTab> _saveAndReturnDefaults(Box box) {
     final defaults = [
-      NavTab(id: 'browser', label: 'المتصفح', icon: Icons.language_outlined, route: '/browser', sectionKey: 'browser'),
-      NavTab(id: 'spiritual', label: 'الجانب الروحي', icon: Icons.mosque_outlined, emoji: '🕌', route: '/worship', sectionKey: 'spiritual'),
-      NavTab(id: 'psychological', label: 'الجانب النفسي', icon: Icons.spa_outlined, emoji: '🌿', route: '/learning', sectionKey: 'psychological'),
-      NavTab(id: 'physical', label: 'الجانب البدني', icon: Icons.fitness_center_outlined, emoji: '💪', route: '/health', sectionKey: 'physical'),
-      NavTab(id: 'mental', label: 'الجانب العقلي', icon: Icons.psychology_outlined, emoji: '🧠', route: '/discipline', sectionKey: 'mental'),
+      NavTab(id: 'browser', label: 'المتصفح', iconCode: Icons.language_outlined.codePoint, route: '/browser', sectionKey: 'browser'),
+      NavTab(id: 'spiritual', label: 'الجانب الروحي', iconCode: Icons.mosque_outlined.codePoint, emoji: '🕌', route: '/worship', sectionKey: 'spiritual'),
+      NavTab(id: 'psychological', label: 'الجانب النفسي', iconCode: Icons.spa_outlined.codePoint, emoji: '🌿', route: '/learning', sectionKey: 'psychological'),
+      NavTab(id: 'physical', label: 'شفاء', iconCode: Icons.healing_outlined.codePoint, emoji: '🛡️', route: '/health', sectionKey: 'physical'),
+      NavTab(id: 'mental', label: 'الجانب العقلي', iconCode: Icons.psychology_outlined.codePoint, emoji: '🧠', route: '/discipline', sectionKey: 'mental'),
     ];
     box.put('nav_tabs', defaults.map((t) => t.toMap()).toList());
     return defaults;

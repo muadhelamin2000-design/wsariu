@@ -26,6 +26,7 @@ import '../features/health/health_dashboard_screen.dart';
 import '../features/learning/linked_study_screen.dart';
 import '../features/learning/study_sessions_screen.dart';
 import '../features/learning/dialogues_screen.dart';
+import '../features/usage_stats/usage_stats_screen.dart';
 import '../features/auth/welcome_screen.dart';
 import '../features/auth/video_splash_screen.dart';
 import '../features/auth/login_screen.dart';
@@ -100,6 +101,8 @@ class AppRouter {
           GoRoute(path: 'sir-ma3-allah', builder: (context, state) => const SecretWithGodScreen()),
           GoRoute(path: 'awadho-allah', builder: (context, state) => const AddictionScreen()),
           GoRoute(path: 'hujja-li', builder: (context, state) => const KnowledgeScreen()),
+          GoRoute(path: 'qiyam', builder: (context, state) => const QiyamTrackerScreen()),
+          GoRoute(path: 'seasons', builder: (context, state) => const SeasonsScreen()),
         ],
       ),
       // 3. الجانب البدني (physical)
@@ -121,6 +124,7 @@ class AppRouter {
           GoRoute(path: 'linked-studies', builder: (context, state) => const LinkedStudyScreen()),
           GoRoute(path: 'study-sessions', builder: (context, state) => const StudySessionsScreen()),
           GoRoute(path: 'dialogues', builder: (context, state) => const DialoguesScreen()),
+          GoRoute(path: 'phone-usage', builder: (context, state) => const UsageStatsScreen()),
         ],
       ),
       GoRoute(

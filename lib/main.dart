@@ -27,6 +27,7 @@ import 'features/personal_matters/services/personal_matters_service.dart';
 import 'features/learning/services/study_session_service.dart';
 import 'features/learning/services/memo_service.dart';
 import 'features/learning/services/knowledge_service.dart' as learning_knowledge;
+import 'features/usage_stats/services/usage_service.dart';
 import 'core/services/theme_service.dart';
 import 'core/services/page_management_service.dart';
 import 'features/dashboard/services/dashboard_settings_service.dart';
@@ -53,6 +54,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // السماح بتدوير الشاشة في كافة الاتجاهات
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   
   try {
     debugPrint("Initializing JustAudioBackground...");
@@ -110,6 +119,10 @@ void main() async {
     BrowserService.init(),
     ScreenTimeService.init(),
     BadgeService.init(),
+    QiyamService.init(),
+    QiyamContentService.init(),
+    SeasonService.init(),
+    UsageService.init(),
   ]);
   debugPrint("Services initialized.");
   

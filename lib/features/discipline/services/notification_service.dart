@@ -9,7 +9,10 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:adhan/adhan.dart';
 import '../models/habit_model.dart';
+import '../../health/models/health_models.dart';
 import '../../dashboard/services/prayer_service.dart';
+import '../../worship/services/addiction_service.dart';
+import '../../worship/services/qiyam_content_service.dart';
 import 'habit_service.dart';
 
 class NotificationService {
@@ -78,6 +81,10 @@ class NotificationService {
             snoozeDuration: snoozeMins,
             customSoundPath: soundPath,
           );
+        } else if (response.actionId == 'addiction_triumph_yes') {
+          await AddictionService.logDailyTriumph(true);
+        } else if (response.actionId == 'addiction_triumph_no') {
+          await AddictionService.logDailyTriumph(false);
         }
       },
     );
@@ -108,8 +115,6 @@ class NotificationService {
 
     await requestPermissions();
     
-    await cancelAllOldNotifications();
-
     scheduleIslamicAlarms();
     scheduleOngoingRefreshes();
     
@@ -123,7 +128,6 @@ class NotificationService {
         await _notificationsPlugin.cancel(id: p.id);
       }
     }
-    debugPrint("All non-prayer notifications cleared.");
   }
 
   static void scheduleOngoingRefreshes() async {
@@ -282,9 +286,42 @@ class NotificationService {
       }
     }
 
+    final qiyamMsg = QiyamContentService.getRotatingNotificationMessage();
     await scheduleNotification(
-      id: 1008, title: "🌌 منتصف الليل", body: "أفضل الصلاة بعد الفريضة صلاة الليل.. هل لك ركعات في جوف الليل؟",
+      id: 1008, 
+      title: "🌌 قيام الليل", 
+      body: "${qiyamMsg['text']} [${qiyamMsg['source']}]",
       time: nightTimes['midnightSharia']!,
+    );
+
+    final fajrTime = prayerTimes['الفجر'];
+    if (fajrTime != null) {
+      await scheduleAddictionTriumphNotification(fajrTime);
+    }
+  }
+
+  static Future<void> scheduleAddictionTriumphNotification(DateTime fajrTime) async {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime.from(fajrTime, tz.local);
+    if (scheduledDate.isBefore(now)) { scheduledDate = scheduledDate.add(const Duration(days: 1)); }
+
+    await _notificationsPlugin.zonedSchedule(
+      id: 7777,
+      title: "🤝 عوضه الله: حصاد الأمس",
+      body: "هل انتصرت في مجاهدة نفسك بالأمس؟",
+      scheduledDate: scheduledDate,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'habit_smart_reminders', 'تذكيرات العادات',
+          importance: Importance.max, priority: Priority.high,
+          actions: [
+            AndroidNotificationAction('addiction_triumph_yes', '✅ نعم، انتصرت', showsUserInterface: true),
+            AndroidNotificationAction('addiction_triumph_no', '❌ لا، تعثرت', showsUserInterface: true),
+          ],
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
@@ -333,6 +370,43 @@ class NotificationService {
       linkedPrayer: item.linkedPrayer,
       body: getSmartWorshipMessage(item.name, isGood),
     );
+  }
+
+  static Future<void> scheduleMedicineReminders(Medicine m) async {
+    final baseId = m.id.hashCode.abs();
+    // إلغاء التنبيهات السابقة (نسمح بحد أقصى 10 جرعات يومياً)
+    for (int i = 0; i < 10; i++) {
+      await _notificationsPlugin.cancel(id: baseId + i);
+    }
+
+    if (m.remindType == MedicineRemindType.fixed) {
+      await scheduleNotification(
+        id: baseId,
+        title: '⏰ موعد دواء: ${m.name}',
+        body: 'جرعة ${m.dose}',
+        time: TimeOfDay(hour: m.hour, minute: m.minute),
+      );
+    } else if (m.remindType == MedicineRemindType.prayer && m.linkedPrayer != null) {
+      final pTime = PrayerService.getPrayerTime(m.linkedPrayer!);
+      if (pTime != null) {
+        await scheduleNotification(
+          id: baseId,
+          title: '⏰ موعد دواء: ${m.name}',
+          body: 'حان موعد جرعة ${m.dose} (مع صلاة ${m.linkedPrayer})',
+          time: pTime,
+        );
+      }
+    } else if (m.remindType == MedicineRemindType.interval) {
+      final times = m.getDoseTimes();
+      for (int i = 0; i < times.length; i++) {
+        await scheduleNotification(
+          id: baseId + i,
+          title: '⏰ موعد دواء: ${m.name}',
+          body: 'حان موعد جرعة ${m.dose} (جرعة ${i + 1} من ${times.length})',
+          time: times[i],
+        );
+      }
+    }
   }
 
   static Future<void> _scheduleGenericReminders({
@@ -395,13 +469,13 @@ class NotificationService {
     return isSoulAtPeace ? "فرصة للتقرب إلى الله: $name.. لا تضيع / تضيعي الأجر 🌟" : "⚠️ انتبه / انتبهي! جاهد / جاهدي نفسك لترك $name";
   }
 
-  // ================= SCHEDULE =================
   static Future<void> scheduleNotification({
     required int id,
     required String title,
     required String body,
     required dynamic time,
     String? habitId,
+    bool repeatable = true,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate;
@@ -418,7 +492,7 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+      matchDateTimeComponents: repeatable ? DateTimeComponents.time : null,
     );
   }
 
@@ -499,6 +573,13 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+  }
+
+  static Future<void> cancelMedicineReminders(String medicineId) async {
+    final baseId = medicineId.hashCode.abs();
+    for (int i = 0; i < 10; i++) {
+      await _notificationsPlugin.cancel(id: baseId + i);
+    }
   }
 
   static Future<void> cancelNotification(int id) async { await _notificationsPlugin.cancel(id: id); _activeNotifications.remove(id); }

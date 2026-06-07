@@ -10,12 +10,16 @@ import 'services/navigation_service.dart';
 import 'services/screen_time_service.dart';
 import 'services/proactive_assistant_service.dart';
 import 'services/smart_report_service.dart';
+import '../usage_stats/services/usage_service.dart';
+import '../usage_stats/models/usage_models.dart';
+import '../discipline/services/notification_service.dart';
 import '../../core/services/theme_service.dart';
 import '../../core/app_theme.dart';
 import '../../core/mixins/help_feature_mixin.dart';
 import '../../core/mixins/ui_helpers_mixin.dart';
 import '../discipline/services/habit_service.dart';
 import '../worship/services/worship_service.dart';
+import '../worship/services/qiyam_service.dart';
 import '../../core/services/page_management_service.dart';
 import '../../core/widgets/modern_dialog.dart';
 import '../../core/widgets/smart_summary_widget.dart';
@@ -125,7 +129,9 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 12),
             _buildSeasonalAlert(isDark),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -148,6 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
                     ),
                     IconButton(
                       icon: const Icon(Icons.library_books_outlined, color: Colors.grey, size: 24), 
+                      tooltip: 'المكتبة',
                       onPressed: () => context.push('/library-choice')
                     ),
                     IconButton(
@@ -170,6 +177,8 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             ),
             const SizedBox(height: 32),
             _buildWirdSection(bundle, isDark),
+            const SizedBox(height: 32),
+            _buildUsageSummaryCard(isDark),
             const SizedBox(height: 32),
             _buildPrayerSection(prayerTimes, nextPrayerStr, isDark),
             const SizedBox(height: 24),
@@ -195,9 +204,9 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
       message = "خير أيام الدنيا، أكثر / أكثري من التكبير والتهليل والتحميد.";
       icon = Icons.mosque_outlined;
     } else if (DateTime.now().weekday == DateTime.friday) {
-      title = "جمعة مباركة ✨";
+      title = "جمعة مباركة 🌙";
       message = "لا تنسَ / تنسي سورة الكهف والصلاة على النبي ﷺ.";
-      icon = Icons.auto_awesome;
+      icon = Icons.event_available_outlined;
     }
 
     if (title == null) return const SizedBox.shrink();
@@ -319,6 +328,53 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     );
   }
 
+  Widget _buildUsageSummaryCard(bool isDark) {
+    return FutureBuilder<DailyUsageSummary>(
+      future: UsageService.getTodayUsage(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final usage = snapshot.data!;
+        final hours = usage.totalScreenTime.inHours;
+        final minutes = usage.totalScreenTime.inMinutes % 60;
+        final score = UsageService.calculateDisciplineScore(usage);
+
+        return InkWell(
+          onTap: () => context.push('/learning/phone-usage'),
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.phone_android, color: Colors.blue, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('وقت الشاشة اليوم 📱', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('$hours ساعة و $minutes دقيقة • انضباط: $score%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPrayerSection(Map<String, DateTime> times, String countdown, bool isDark) {
     final next = PrayerService.getNextPrayerName();
     final sunanProgress = SunanService.getTodayProgress();
@@ -328,63 +384,92 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final isHouseBuilt = SunanService.isHouseBuiltToday();
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBF5),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
       ),
       child: Column(
         children: [
+          // Row 1: Prayer Names
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: times.keys.map((name) {
+              bool isNext = name == next;
+              return Expanded(
+                child: Center(
+                  child: Text(name, 
+                    style: TextStyle(fontSize: 9, color: isNext ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.7), fontWeight: isNext ? FontWeight.bold : FontWeight.normal)
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          // Row 2: Prayer Times
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: times.entries.map((e) {
               bool isNext = e.key == next;
-              final prayerSunan = SunanService.getSunanForPrayer(e.key);
-              
-              return Column(
-                children: [
-                  Text(e.key, style: TextStyle(fontSize: 10, color: isNext ? const Color(0xFFC8A24A) : Colors.grey)),
-                  const SizedBox(height: 8),
-                  Text(DateFormat.jm('ar').format(e.value), 
-                    style: TextStyle(fontSize: 12, fontWeight: isNext ? FontWeight.bold : FontWeight.normal)
+              return Expanded(
+                child: Center(
+                  child: Text(DateFormat.jm('ar').format(e.value).replaceAll('ص', 'ص').replaceAll('م', 'م'), 
+                    style: TextStyle(fontSize: 10, fontWeight: isNext ? FontWeight.bold : FontWeight.w500, color: isNext ? const Color(0xFFC8A24A) : (isDark ? Colors.white70 : Colors.black87))
                   ),
-                  const SizedBox(height: 12),
-                  // Sunan Bricks
-                  if (prayerSunan.isNotEmpty)
-                    Row(
-                      children: prayerSunan.entries.map((s) {
-                        final key = '${e.key}_${s.key}';
-                        final currentCount = sunanProgress[key] ?? 0;
-                        final targetCount = s.value;
-                        bool isDone = currentCount >= targetCount;
-                        
-                        return GestureDetector(
-                          onTap: () async {
-                            await SunanService.updateProgress(e.key, s.key, isDone ? 0 : targetCount);
-                            _onDataChanged();
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDone ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3)),
-                            ),
-                            child: Text('${s.value}', style: TextStyle(fontSize: 8, color: isDone ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                ],
+                ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          // Row 3: Sunan Bricks
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: times.keys.map((name) {
+              var prayerSunan = SunanService.getSunanForPrayer(name);
+              
+              return Expanded(
+                child: Center(
+                  child: prayerSunan.isEmpty 
+                    ? const SizedBox(height: 18)
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: prayerSunan.entries.map((s) {
+                          final key = '${name}_${s.key}';
+                          final currentCount = sunanProgress[key] ?? 0;
+                          final targetCount = s.value;
+                          bool isDone = currentCount >= targetCount;
+                          
+                          return GestureDetector(
+                            onTap: () async {
+                              await SunanService.updateProgress(name, s.key, isDone ? 0 : targetCount);
+                              _onDataChanged();
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDone ? const Color(0xFFC8A24A) : Colors.grey.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3), width: 0.5),
+                              ),
+                              child: Text('${s.value}', style: TextStyle(fontSize: 8, color: isDone ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 28),
           
           // House in Paradise Section
           _buildHouseWidget(totalRakaat, targetRakaat, totalHouses, isHouseBuilt, isDark),
+          
+          const SizedBox(height: 16),
+          
+          // Qiyam al-Layl Card
+          _buildQiyamCard(isDark),
           
           const SizedBox(height: 24),
           Container(
@@ -398,6 +483,53 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQiyamCard(bool isDark) {
+    final int todayMinutes = QiyamService.getTodayTotalPrayerMinutes();
+    final hours = todayMinutes ~/ 60;
+    final minutes = todayMinutes % 60;
+
+    return InkWell(
+      onTap: () => context.push('/worship/qiyam'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFC8A24A).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFC8A24A).withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFC8A24A),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.nights_stay, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('قيام الليل 🌙', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    todayMinutes > 0 
+                      ? 'صليت اليوم: $hours ساعة و $minutes دقيقة' 
+                      : 'لم يتم تسجيل صلاة لليوم بعد',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFFC8A24A)),
+          ],
+        ),
       ),
     );
   }
@@ -479,14 +611,40 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             ],
           ),
           const SizedBox(height: 12),
+          if (DateTime.now().weekday == DateTime.friday)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'ملحوظة: سنة الجمعة الراتبة أربع ركعات بعد الصلاة، وليس لها سنة راتبة قبلية.',
+                        style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           const Text(
             'قَالَ رَسُولُ اللهِ ﷺ:',
             style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
           ),
-          const Text(
-            '«مَنْ صَلَّى لِلَّهِ فِي يَوْمٍ وَلَيْلَةٍ اثْنَتَيْ عَشْرَةَ رَكْعَةً بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»',
+          Text(
+            target == 12 
+              ? '«مَنْ صَلَّى لِلَّهِ فِي يَوْمٍ وَلَيْلَةٍ اثْنَتَيْ عَشْرَةَ رَكْعَةً بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»'
+              : '«مَنْ صَلَّى لِلَّهِ فِي يَوْمِ الْجُمُعَةِ عَشْرَ رَكَعَاتٍ بَنَى اللَّهُ لَهُ بَيْتًا فِي الْجَنَّةِ»',
             textAlign: TextAlign.center,
-            style: TextStyle(fontFamily: 'Amiri', fontSize: 13, color: Color(0xFFC8A24A), fontWeight: FontWeight.bold),
+            style: const TextStyle(fontFamily: 'Amiri', fontSize: 13, color: Color(0xFFC8A24A), fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -599,12 +757,23 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
             icon: tab.emoji != null ? Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(tab.emoji!, style: const TextStyle(fontSize: 18)),
-            ) : Icon(tab.icon), 
+            ) : Icon(_getTabIcon(tab.id)), 
             label: tab.label
           )).toList(),
         ),
       ),
     );
+  }
+
+  IconData _getTabIcon(String id) {
+    switch (id) {
+      case 'browser': return Icons.language_outlined;
+      case 'spiritual': return Icons.mosque_outlined;
+      case 'psychological': return Icons.spa_outlined;
+      case 'physical': return Icons.fitness_center_outlined;
+      case 'mental': return Icons.psychology_outlined;
+      default: return Icons.home_outlined;
+    }
   }
 
   void _showGlobalSearch() {
@@ -697,5 +866,19 @@ class _DashboardScreenState extends State<DashboardScreen> with HelpFeatureMixin
     final nameController = TextEditingController(text: section.name);
     final iconController = TextEditingController(text: section.icon);
     ModernDialog.show(context: context, title: 'تعديل القسم', content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: nameController, decoration: const InputDecoration(labelText: 'اسم القسم')), const SizedBox(height: 12), TextField(controller: iconController, decoration: const InputDecoration(labelText: 'الأيقونة (إيموجي)'))]), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), ElevatedButton(onPressed: () async { if (nameController.text.isNotEmpty) { section.name = nameController.text; section.icon = iconController.text; await PageManagementService.saveSection(section); if (mounted) Navigator.pop(context); } }, child: const Text('حفظ'))]);
+  }
+
+  void _setPrayerAlarm(String name, DateTime time) async {
+    final confirm = await ModernDialog.showConfirm(
+      context: context,
+      title: 'ضبط منبه الصلاة',
+      message: 'هل تريد ضبط منبه الهاتف لوقت $name (${DateFormat.jm('ar').format(time)})؟',
+    );
+    if (confirm == true) {
+      await NotificationService.setSystemAlarm(hour: time.hour, minutes: time.minute);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم ضبط المنبه لـ $name بنجاح')));
+      }
+    }
   }
 }

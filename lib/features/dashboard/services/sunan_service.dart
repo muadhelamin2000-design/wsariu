@@ -9,10 +9,11 @@ class SunanService {
   }
 
   static Map<String, int> getSunanForPrayer(String prayerName) {
-    // توزيع السنن الرواتب (12 ركعة)
+    // توزيع السنن الرواتب
     switch (prayerName) {
       case 'الفجر': return {'قبلية': 2};
       case 'الظهر': return {'قبلية': 4, 'بعدية': 2};
+      case 'الجمعة': return {'بعدية': 4}; // سنة الجمعة الراتبة بعدية (4 ركعات)
       case 'المغرب': return {'بعدية': 2};
       case 'العشاء': return {'بعدية': 2};
       default: return {};
@@ -46,7 +47,7 @@ class SunanService {
 
   static int getTargetRakaat() {
     final now = DateTime.now();
-    if (now.weekday == DateTime.friday) return 10; // السنن في يوم الجمعة تختلف (أقلها 8 أو 10)
+    if (now.weekday == DateTime.friday) return 10; // 2 Fajr + 4 Jumu'ah + 2 Maghrib + 2 Isha = 10
     return 12;
   }
 

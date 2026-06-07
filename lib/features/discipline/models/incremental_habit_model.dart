@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'habit_model.dart';
 
 class IncrementalHabit {
   final String id;
@@ -15,6 +16,8 @@ class IncrementalHabit {
   final int orderIndex;
   final int? reminderHour;
   final int? reminderMinute;
+  final ReminderType reminderType;
+  final String? linkedPrayer;
 
   IncrementalHabit({
     required this.id,
@@ -31,6 +34,8 @@ class IncrementalHabit {
     this.orderIndex = 0,
     this.reminderHour,
     this.reminderMinute,
+    this.reminderType = ReminderType.fixed,
+    this.linkedPrayer,
   });
 
   Color get color => Color(colorValue);
@@ -74,6 +79,8 @@ class IncrementalHabit {
       'orderIndex': orderIndex,
       'reminderHour': reminderHour,
       'reminderMinute': reminderMinute,
+      'reminderType': reminderType.index,
+      'linkedPrayer': linkedPrayer,
     };
   }
 
@@ -95,6 +102,8 @@ class IncrementalHabit {
       orderIndex: map['orderIndex'] ?? 0,
       reminderHour: map['reminderHour'],
       reminderMinute: map['reminderMinute'],
+      reminderType: ReminderType.values[map['reminderType'] ?? 0],
+      linkedPrayer: map['linkedPrayer'],
     );
   }
 
@@ -110,6 +119,8 @@ class IncrementalHabit {
     int? orderIndex,
     int? reminderHour,
     int? reminderMinute,
+    ReminderType? reminderType,
+    String? linkedPrayer,
     bool clearReminder = false,
   }) {
     return IncrementalHabit(
@@ -127,6 +138,8 @@ class IncrementalHabit {
       orderIndex: orderIndex ?? this.orderIndex,
       reminderHour: clearReminder ? null : (reminderHour ?? this.reminderHour),
       reminderMinute: clearReminder ? null : (reminderMinute ?? this.reminderMinute),
+      reminderType: reminderType ?? this.reminderType,
+      linkedPrayer: linkedPrayer ?? this.linkedPrayer,
     );
   }
 }

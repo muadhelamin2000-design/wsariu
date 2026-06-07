@@ -99,10 +99,6 @@ class _DailyRoutineScreenState extends State<DailyRoutineScreen> with HelpFeatur
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddRoutineSheet(),
-        label: const Text('إضافة'),
-      ),
       body: Column(
         children: [
           QuickLinkNavigator(currentPageId: 'routine'),

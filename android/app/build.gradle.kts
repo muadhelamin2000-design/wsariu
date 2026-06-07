@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.nimaalabd"
-    compileSdk = 36
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -21,8 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.nimaalabd"
-        minSdk = flutter.minSdkVersion
-        targetSdk = 36
+        minSdk = 21
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
@@ -40,6 +40,8 @@ configurations.all {
         force("androidx.glance:glance-appwidget:1.1.0")
         force("androidx.glance:glance:1.1.0")
         force("androidx.compose.remote:remote-creation-android:1.0.0-alpha01")
+        force("androidx.core:core:1.13.1")
+        force("androidx.core:core-ktx:1.13.1")
     }
 }
 

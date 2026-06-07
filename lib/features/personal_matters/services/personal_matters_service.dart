@@ -85,6 +85,22 @@ class PersonalMattersService {
     }
   }
 
+  static Future<void> addDetailsToTransaction(String id, double additionalAmount, String detail) async {
+    final box = Hive.box(transBoxName);
+    final transMap = box.get(id);
+    if (transMap != null) {
+      final trans = FinanceTransaction.fromMap(Map<dynamic, dynamic>.from(transMap));
+      List<String> newDetails = List.from(trans.details);
+      newDetails.add(detail);
+      final updated = trans.copyWith(
+        amount: trans.amount + additionalAmount,
+        details: newDetails,
+      );
+      await box.put(id, updated.toMap());
+      await _recalculateBalance();
+    }
+  }
+
   static Future<void> _recalculateBalance() async {
     final transactions = getTransactions();
     final subscriptions = getSubscriptions();

@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 // --- Chronic Conditions & Lab Tests (New) ---
 
 enum MedicineStatus { taken, pending, missed }
+enum MedicineRemindType { fixed, interval, prayer }
 
 class ChronicCondition {
   final String id;
-  final String personName; // لنفسي أو اسم فرد العائلة
+  final String? patientId; // ربط الحالة بمريض محدد
+  final String personName; 
   final String conditionName; // اسم المرض (مثلاً: صدفية)
   final double? weight;
   final double? height;
@@ -16,6 +18,7 @@ class ChronicCondition {
 
   ChronicCondition({
     required this.id,
+    this.patientId,
     required this.personName,
     required this.conditionName,
     this.weight,
@@ -27,6 +30,7 @@ class ChronicCondition {
 
   Map<String, dynamic> toMap() => {
     'id': id,
+    'patientId': patientId,
     'personName': personName,
     'conditionName': conditionName,
     'weight': weight,
@@ -38,6 +42,7 @@ class ChronicCondition {
 
   factory ChronicCondition.fromMap(Map<dynamic, dynamic> map) => ChronicCondition(
     id: map['id'],
+    patientId: map['patientId'],
     personName: map['personName'],
     conditionName: map['conditionName'],
     weight: (map['weight'] as num?)?.toDouble(),
@@ -52,9 +57,13 @@ class Medicine {
   final String id;
   final String name;
   final String dose;
-  final String instruction; // (قبل الأكل، بعد الأكل، دهان...)
+  final String instruction; 
   final int hour;
   final int minute;
+  final int frequencyPerDay;
+  final MedicineRemindType remindType;
+  final String? linkedPrayer;
+  final DateTime? lastTakenAt;
   MedicineStatus status;
 
   Medicine({
@@ -64,10 +73,48 @@ class Medicine {
     this.instruction = '',
     required this.hour,
     required this.minute,
+    this.frequencyPerDay = 1,
+    this.remindType = MedicineRemindType.fixed,
+    this.linkedPrayer,
+    this.lastTakenAt,
     this.status = MedicineStatus.pending,
   });
 
   TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
+
+  List<TimeOfDay> getDoseTimes() {
+    if (remindType != MedicineRemindType.interval || frequencyPerDay <= 1) {
+      return [time];
+    }
+    
+    List<TimeOfDay> times = [];
+    double intervalMinutes = (24 * 60) / frequencyPerDay;
+    int startTotalMinutes = hour * 60 + minute;
+    
+    for (int i = 0; i < frequencyPerDay; i++) {
+      int currentTotalMinutes = (startTotalMinutes + (i * intervalMinutes).toInt()) % (24 * 60);
+      times.add(TimeOfDay(hour: currentTotalMinutes ~/ 60, minute: currentTotalMinutes % 60));
+    }
+    // Sort times to make finding "next" easier
+    times.sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
+    return times;
+  }
+
+  TimeOfDay getNextDoseTime() {
+    final times = getDoseTimes();
+    if (times.length <= 1) return times.first;
+    
+    final now = TimeOfDay.now();
+    final nowMins = now.hour * 60 + now.minute;
+    
+    for (var t in times) {
+      if ((t.hour * 60 + t.minute) > nowMins) {
+        return t;
+      }
+    }
+    // If none are after now, the next one is the first one tomorrow
+    return times.first;
+  }
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -76,6 +123,10 @@ class Medicine {
     'instruction': instruction,
     'hour': hour,
     'minute': minute,
+    'frequencyPerDay': frequencyPerDay,
+    'remindType': remindType.index,
+    'linkedPrayer': linkedPrayer,
+    'lastTakenAt': lastTakenAt?.toIso8601String(),
     'status': status.index,
   };
 
@@ -86,8 +137,37 @@ class Medicine {
     instruction: map['instruction'] ?? '',
     hour: map['hour'],
     minute: map['minute'],
+    frequencyPerDay: map['frequencyPerDay'] ?? 1,
+    remindType: MedicineRemindType.values[map['remindType'] ?? 0],
+    linkedPrayer: map['linkedPrayer'],
+    lastTakenAt: map['lastTakenAt'] != null ? DateTime.parse(map['lastTakenAt']) : null,
     status: MedicineStatus.values[map['status'] ?? 1],
   );
+
+  Medicine copyWith({
+    String? name,
+    String? dose,
+    MedicineStatus? status,
+    DateTime? lastTakenAt,
+    String? linkedPrayer,
+    MedicineRemindType? remindType,
+    int? hour,
+    int? minute,
+  }) {
+    return Medicine(
+      id: id,
+      name: name ?? this.name,
+      dose: dose ?? this.dose,
+      instruction: instruction,
+      hour: hour ?? this.hour,
+      minute: minute ?? this.minute,
+      frequencyPerDay: frequencyPerDay,
+      remindType: remindType ?? this.remindType,
+      linkedPrayer: linkedPrayer ?? this.linkedPrayer,
+      lastTakenAt: lastTakenAt ?? this.lastTakenAt,
+      status: status ?? this.status,
+    );
+  }
 }
 
 class LabResult {
@@ -162,8 +242,8 @@ class GradualLabTest {
 // --- Nutrition & Workout Models (Old, Keep for Compatibility) ---
 
 enum Gender { male, female }
-enum ActivityLevel { low, medium, high }
-enum HealthGoal { loseFat, gainMuscle, recomposition, maintain }
+enum ActivityLevel { sedentary, light, moderate, active, veryActive }
+enum HealthGoal { loseFat, cleanBulk, recomposition, maintain }
 
 class UserHealthProfile {
   final String userId;
@@ -195,12 +275,12 @@ class UserHealthProfile {
   };
 
   factory UserHealthProfile.fromMap(Map<dynamic, dynamic> map) => UserHealthProfile(
-    userId: map['userId'],
+    userId: map['userId'] ?? '',
     gender: Gender.values[map['gender'] ?? 0],
-    age: map['age'] ?? 0,
-    height: (map['height'] as num?)?.toDouble() ?? 0,
-    weight: (map['weight'] as num?)?.toDouble() ?? 0,
-    activityLevel: ActivityLevel.values[map['activityLevel'] ?? 1],
+    age: map['age'] ?? 25,
+    height: (map['height'] as num?)?.toDouble() ?? 170,
+    weight: (map['weight'] as num?)?.toDouble() ?? 70,
+    activityLevel: ActivityLevel.values[map['activityLevel'] ?? 0],
     goal: HealthGoal.values[map['goal'] ?? 0],
   );
 }
@@ -249,6 +329,90 @@ class FoodEntry {
   );
 }
 
+class FoodTemplate {
+  final String id;
+  final String userId;
+  final String name;
+  final double proteinPer100g;
+  final double carbsPer100g;
+  final double fatsPer100g;
+  final double caloriesPer100g;
+
+  FoodTemplate({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.proteinPer100g,
+    required this.carbsPer100g,
+    required this.fatsPer100g,
+    required this.caloriesPer100g,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'userId': userId,
+    'name': name,
+    'proteinPer100g': proteinPer100g,
+    'carbsPer100g': carbsPer100g,
+    'fatsPer100g': fatsPer100g,
+    'caloriesPer100g': caloriesPer100g,
+  };
+
+  factory FoodTemplate.fromMap(Map<dynamic, dynamic> map) => FoodTemplate(
+    id: map['id'],
+    userId: map['userId'],
+    name: map['name'],
+    proteinPer100g: (map['proteinPer100g'] as num).toDouble(),
+    carbsPer100g: (map['carbsPer100g'] as num).toDouble(),
+    fatsPer100g: (map['fatsPer100g'] as num).toDouble(),
+    caloriesPer100g: (map['caloriesPer100g'] as num).toDouble(),
+  );
+}
+
+class PatientProfile {
+  final String id;
+  final String userId;
+  final String name;
+  final int? age;
+  final double? weight;
+  final double? height;
+  final String? notes;
+  final String? imagePath;
+
+  PatientProfile({
+    required this.id,
+    required this.userId,
+    required this.name,
+    this.age,
+    this.weight,
+    this.height,
+    this.notes,
+    this.imagePath,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'userId': userId,
+    'name': name,
+    'age': age,
+    'weight': weight,
+    'height': height,
+    'notes': notes,
+    'imagePath': imagePath,
+  };
+
+  factory PatientProfile.fromMap(Map<dynamic, dynamic> map) => PatientProfile(
+    id: map['id'],
+    userId: map['userId'],
+    name: map['name'],
+    age: map['age'],
+    weight: (map['weight'] as num?)?.toDouble(),
+    height: (map['height'] as num?)?.toDouble(),
+    notes: map['notes'],
+    imagePath: map['imagePath'],
+  );
+}
+
 enum WorkoutType { cardio, home, gym }
 
 class WorkoutExercise {
@@ -256,11 +420,17 @@ class WorkoutExercise {
   final String userId;
   final String name;
   final WorkoutType type;
+  final String? muscleGroup; // New: Chest, Back, etc.
+  final String? subCategory; // New: Upper Chest, etc.
   final int? sets;
   final int? reps;
   final double? weight;
   final double? caloriesBurned;
   final int? durationMinutes;
+  final String? videoPath; // New
+  final String? imagePath; // New
+  final String notes; // New
+  final bool isRecurring; // New: Acts like a habit
   final DateTime date;
   final Map<String, bool> completionLog;
 
@@ -269,11 +439,17 @@ class WorkoutExercise {
     required this.userId,
     required this.name,
     required this.type,
+    this.muscleGroup,
+    this.subCategory,
     this.sets,
     this.reps,
     this.weight,
     this.caloriesBurned,
     this.durationMinutes,
+    this.videoPath,
+    this.imagePath,
+    this.notes = '',
+    this.isRecurring = false,
     required this.date,
     this.completionLog = const {},
   });
@@ -283,11 +459,17 @@ class WorkoutExercise {
     'userId': userId,
     'name': name,
     'type': type.index,
+    'muscleGroup': muscleGroup,
+    'subCategory': subCategory,
     'sets': sets,
     'reps': reps,
     'weight': weight,
     'caloriesBurned': caloriesBurned,
     'durationMinutes': durationMinutes,
+    'videoPath': videoPath,
+    'imagePath': imagePath,
+    'notes': notes,
+    'isRecurring': isRecurring,
     'date': date.toIso8601String(),
     'completionLog': completionLog,
   };
@@ -297,27 +479,55 @@ class WorkoutExercise {
     userId: map['userId'],
     name: map['name'],
     type: WorkoutType.values[map['type'] ?? 0],
+    muscleGroup: map['muscleGroup'],
+    subCategory: map['subCategory'],
     sets: map['sets'],
     reps: map['reps'],
     weight: (map['weight'] as num?)?.toDouble(),
     caloriesBurned: (map['caloriesBurned'] as num?)?.toDouble(),
     durationMinutes: map['durationMinutes'],
+    videoPath: map['videoPath'],
+    imagePath: map['imagePath'],
+    notes: map['notes'] ?? '',
+    isRecurring: map['isRecurring'] ?? false,
     date: DateTime.parse(map['date'] ?? DateTime.now().toIso8601String()),
     completionLog: Map<String, bool>.from(map['completionLog'] ?? {}),
   );
 
-  WorkoutExercise copyWith({Map<String, bool>? completionLog}) {
+  WorkoutExercise copyWith({
+    String? name,
+    WorkoutType? type,
+    String? muscleGroup,
+    String? subCategory,
+    int? sets,
+    int? reps,
+    double? weight,
+    double? caloriesBurned,
+    int? durationMinutes,
+    String? videoPath,
+    String? imagePath,
+    String? notes,
+    bool? isRecurring,
+    Map<String, bool>? completionLog,
+    DateTime? date,
+  }) {
     return WorkoutExercise(
       id: id,
       userId: userId,
-      name: name,
-      type: type,
-      sets: sets,
-      reps: reps,
-      weight: weight,
-      caloriesBurned: caloriesBurned,
-      durationMinutes: durationMinutes,
-      date: date,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      muscleGroup: muscleGroup ?? this.muscleGroup,
+      subCategory: subCategory ?? this.subCategory,
+      sets: sets ?? this.sets,
+      reps: reps ?? this.reps,
+      weight: weight ?? this.weight,
+      caloriesBurned: caloriesBurned ?? this.caloriesBurned,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      videoPath: videoPath ?? this.videoPath,
+      imagePath: imagePath ?? this.imagePath,
+      notes: notes ?? this.notes,
+      isRecurring: isRecurring ?? this.isRecurring,
+      date: date ?? this.date,
       completionLog: completionLog ?? this.completionLog,
     );
   }

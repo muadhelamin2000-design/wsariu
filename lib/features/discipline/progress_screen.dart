@@ -125,7 +125,7 @@ class _ProgressScreenState extends State<ProgressScreen> with HelpFeatureMixin {
                               ),
                             ],
                           )
-                        : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_a_photo, color: Colors.grey), Text('إضافة صورة غلاف', style: TextStyle(color: Colors.grey, fontSize: 12))]),
+                        : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.photo_camera, color: Colors.grey), Text('إضافة صورة غلاف', style: TextStyle(color: Colors.grey, fontSize: 12))]),
                   ),
                 ),
                 const SizedBox(height: 24),

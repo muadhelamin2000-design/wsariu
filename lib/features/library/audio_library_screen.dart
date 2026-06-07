@@ -117,6 +117,7 @@ class _AudioLibraryScreenState extends State<AudioLibraryScreen> {
             builder: (context) => ModernAudioPlayer(
               audioPaths: allAudios.map((f) => f.path).toList(),
               titles: allAudios.map((f) => f.name).toList(),
+              fileIds: allAudios.map((f) => f.id).toList(), // Pass file IDs
               initialIndex: index,
             ),
           );

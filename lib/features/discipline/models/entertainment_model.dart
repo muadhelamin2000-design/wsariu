@@ -6,7 +6,7 @@ class EntertainmentActivity {
   final String id;
   final String title;
   final String description;
-  final IconData icon;
+  final String icon; // Changed to String (Emoji)
   final EntertainmentType type;
   final int durationMinutes;
   final String motivationalMessage;
@@ -30,7 +30,7 @@ class EntertainmentActivity {
       'id': id,
       'title': title,
       'description': description,
-      'icon': icon.codePoint,
+      'icon': icon,
       'type': type.index,
       'durationMinutes': durationMinutes,
       'motivationalMessage': motivationalMessage,
@@ -44,7 +44,7 @@ class EntertainmentActivity {
       id: map['id'],
       title: map['title'],
       description: map['description'],
-      icon: IconData(map['icon'], fontFamily: 'MaterialIcons'),
+      icon: map['icon']?.toString() ?? '🎮',
       type: EntertainmentType.values[map['type']],
       durationMinutes: map['durationMinutes'],
       motivationalMessage: map['motivationalMessage'] ?? "أحسنت! خطوة رائعة لتحسين حالتك النفسية.",

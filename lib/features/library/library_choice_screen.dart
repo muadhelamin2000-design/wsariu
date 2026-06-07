@@ -27,38 +27,36 @@ class LibraryChoiceScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            _buildChoiceCard(
-              context,
-              title: 'المكتبة الصوتية',
-              subtitle: 'محاضرات، أذكار، وتلاوات صوتية',
-              icon: Icons.audiotrack_rounded,
-              color: Colors.blue,
-              onTap: () => context.push('/audio-library'),
-            ),
-            const SizedBox(height: 16),
-            _buildChoiceCard(
-              context,
-              title: 'المكتبة المقروءة',
-              subtitle: 'كتب، ملفات PDF، ومقالات',
-              icon: Icons.menu_book_rounded,
-              color: Colors.green,
-              onTap: () => context.push('/library'),
-            ),
-            const SizedBox(height: 16),
-            _buildChoiceCard(
-              context,
-              title: 'المكتبة المرئية',
-              subtitle: 'دروس ومقاطع فيديو تعليمية',
-              icon: Icons.video_library_rounded,
-              color: Colors.orange,
-              onTap: () => context.push('/video-library'),
-            ),
-          ],
-        ),
+        children: [
+          _buildChoiceCard(
+            context,
+            title: 'المكتبة الصوتية',
+            subtitle: 'محاضرات، أذكار، وتلاوات صوتية',
+            icon: Icons.audiotrack_rounded,
+            color: Colors.blue,
+            onTap: () => context.push('/audio-library'),
+          ),
+          const SizedBox(height: 16),
+          _buildChoiceCard(
+            context,
+            title: 'المكتبة المقروءة',
+            subtitle: 'كتب، ملفات PDF، ومقالات',
+            icon: Icons.menu_book_rounded,
+            color: Colors.green,
+            onTap: () => context.push('/library'),
+          ),
+          const SizedBox(height: 16),
+          _buildChoiceCard(
+            context,
+            title: 'المكتبة المرئية',
+            subtitle: 'دروس ومقاطع فيديو تعليمية',
+            icon: Icons.video_library_rounded,
+            color: Colors.orange,
+            onTap: () => context.push('/video-library'),
+          ),
+        ],
       ),
     );
   }

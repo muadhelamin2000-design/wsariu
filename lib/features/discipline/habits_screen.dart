@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/habit_model.dart';
 import 'habit_detail_screen.dart';
+import 'habit_section_screen.dart';
 import 'services/habit_service.dart';
 import 'services/notification_service.dart';
 import '../profile/services/user_service.dart';
@@ -956,76 +957,39 @@ class _HabitsScreenState extends State<HabitsScreen> with HelpFeatureMixin {
 
   Widget _buildHabitSection({required String title, required List<Habit> habits, required HabitGoal goal, Key? key}) {
     final metadata = HabitService.getSectionMetadata(goal);
-    return Column(
+    return Card(
       key: key,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(metadata['emoji'] ?? '', style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  Text(
-                    metadata['title'] ?? title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(metadata['color'] ?? 0xFF000000),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(_isSectionExpanded[goal] ?? false ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 20, color: Colors.grey),
-                    onPressed: () => setState(() => _isSectionExpanded[goal] = !(_isSectionExpanded[goal] ?? false)),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
-                    onPressed: () => _showEditSectionDialog(goal),
-                  ),
-                ],
-              ),
-            ],
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => HabitSectionScreen(goal: goal))).then((_) => _loadHabits()),
+        leading: Text(metadata['emoji'] ?? '', style: const TextStyle(fontSize: 24)),
+        title: Text(
+          metadata['title'] ?? title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(metadata['color'] ?? 0xFF000000),
           ),
         ),
-        if (_isSectionExpanded[goal] ?? false)
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: habits.length,
-            onReorder: (oldIndex, newIndex) async {
-              setState(() {
-                if (newIndex > oldIndex) newIndex -= 1;
-                final item = habits.removeAt(oldIndex);
-                habits.insert(newIndex, item);
-                
-                // Update orderIndex for items in this section
-                for (int i = 0; i < habits.length; i++) {
-                  final globalIdx = _habits.indexWhere((h) => h.id == habits[i].id);
-                  if (globalIdx != -1) {
-                    _habits[globalIdx] = habits[i].copyWith(orderIndex: i);
-                  }
-                }
-                // Sort _habits globally to reflect new order
-                _habits.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-              });
-              await HabitService.saveHabitsOrder(_habits);
-              _loadHabits(); // Reload and refresh subsets
-            },
-            itemBuilder: (context, index) {
-              final habit = habits[index];
-              return _buildHabitCard(habit, index, key: ValueKey(habit.id));
-            },
-          ),
-      ],
+        subtitle: Text('عدد العادات: ${habits.length}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+              onSelected: (val) {
+                if (val == 'edit') _showEditSectionDialog(goal);
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('تعديل القسم', style: TextStyle(fontSize: 12))])),
+              ],
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 

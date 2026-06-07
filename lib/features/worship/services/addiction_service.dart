@@ -81,6 +81,17 @@ class AddictionService {
     }
   }
 
+  static Future<void> logDailyTriumph(bool victory) async {
+    final habits = getHabits();
+    for (var h in habits) {
+      if (victory) {
+        await incrementStreak(h.id);
+      } else {
+        await lapseStreak(h.id);
+      }
+    }
+  }
+
   static Map<String, List<String>> generateAIContent(String habitName) {
     habitName = habitName.trim().toLowerCase();
     

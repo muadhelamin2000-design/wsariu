@@ -102,11 +102,10 @@ class _PersonalMattersScreenState extends State<PersonalMattersScreen> with Sing
             children: [
               const Text('قوائم التواصل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const Spacer(),
-              ElevatedButton.icon(
+              ElevatedButton(
                 onPressed: () => _showAddRelListDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('قائمة جديدة'),
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen, foregroundColor: Colors.white),
+                child: const Text('قائمة جديدة'),
               ),
             ],
           ),
@@ -168,7 +167,7 @@ class _PersonalMattersScreenState extends State<PersonalMattersScreen> with Sing
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                TextButton.icon(onPressed: () => _showAddPersonDialog(list), icon: const Icon(Icons.add), label: const Text('إضافة شخص')),
+                TextButton(onPressed: () => _showAddPersonDialog(list), child: const Text('إضافة شخص')),
                 TextButton.icon(onPressed: () => _callRemaining(list), icon: const Icon(Icons.auto_awesome), label: const Text('من التالي؟')),
                 IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _confirmDeleteRelList(list)),
               ],

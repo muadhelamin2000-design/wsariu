@@ -97,11 +97,6 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> with SingleTickerProv
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEntryDialog(KnowledgeType.values[_tabController.index]),
-        backgroundColor: AppTheme.primaryGreen,
-        label: const Text('إضافة', style: TextStyle(color: Color(0xFFC8A24A), fontWeight: FontWeight.bold, fontSize: 16)),
-      ),
     );
   }
 
@@ -302,19 +297,19 @@ class _KnowledgeScreenState extends State<KnowledgeScreen> with SingleTickerProv
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle, color: AppTheme.primaryGreen),
-                    onPressed: () {
-                      if (benefitController.text.isNotEmpty) {
-                        setModalState(() {
-                          benefitsList.add(benefitController.text);
-                          benefitController.clear();
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
+                    TextButton(
+                      onPressed: () {
+                        if (benefitController.text.isNotEmpty) {
+                          setModalState(() {
+                            benefitsList.add(benefitController.text);
+                            benefitController.clear();
+                          });
+                        }
+                      },
+                      child: const Text('إضافة'),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 12),
               TextField(
                 controller: tagsController,

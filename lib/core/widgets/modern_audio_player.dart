@@ -2,16 +2,19 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import '../../features/library/services/library_service.dart';
 
 class ModernAudioPlayer extends StatefulWidget {
   final List<String> audioPaths;
   final List<String> titles;
+  final List<String>? fileIds; // New: to track progress
   final int initialIndex;
 
   const ModernAudioPlayer({
     super.key,
     required this.audioPaths,
     required this.titles,
+    this.fileIds,
     this.initialIndex = 0,
   });
 
@@ -71,19 +74,33 @@ class _ModernAudioPlayerState extends State<ModernAudioPlayer> {
 
       final playlist = ConcatenatingAudioSource(children: sources);
       await _player.setAudioSource(playlist, initialIndex: widget.initialIndex < sources.length ? widget.initialIndex : 0);
-      _player.play(); // تشغيل تلقائي عند الفتح
+      
+      // Resume from saved progress if available
+      if (widget.fileIds != null && widget.fileIds!.length > _currentIndex) {
+        final savedFile = LibraryService.getFileById(widget.fileIds![_currentIndex]);
+        if (savedFile != null && savedFile.currentUnit > 0) {
+          await _player.seek(Duration(seconds: savedFile.currentUnit));
+        }
+      }
+
+      _player.play();
       
       _player.durationStream.listen((d) {
         if (mounted) setState(() => _duration = d ?? Duration.zero);
       });
       
       _player.positionStream.listen((p) {
-        if (mounted) setState(() => _position = p);
+        if (mounted) {
+          setState(() => _position = p);
+          // Save progress every 5 seconds or on position change
+          if (widget.fileIds != null && widget.fileIds!.length > _currentIndex) {
+            _saveProgress(p.inSeconds);
+          }
+        }
       });
       
       _player.playerStateStream.listen((state) {
         if (mounted) setState(() => _isPlaying = state.playing);
-        // Automatic next is handled by ConcatenatingAudioSource
       });
 
       _player.currentIndexStream.listen((idx) {
@@ -96,8 +113,20 @@ class _ModernAudioPlayerState extends State<ModernAudioPlayer> {
     }
   }
 
+  void _saveProgress(int seconds) {
+    if (widget.fileIds == null || widget.fileIds!.length <= _currentIndex) return;
+    
+    // We only update if the difference is meaningful (e.g., every 5 seconds) to avoid excessive writes
+    final fileId = widget.fileIds![_currentIndex];
+    LibraryService.updateCurrentUnit(fileId, seconds);
+  }
+
   @override
   void dispose() {
+    // Final save on close
+    if (widget.fileIds != null && widget.fileIds!.length > _currentIndex) {
+      _saveProgress(_position.inSeconds);
+    }
     _player.dispose();
     super.dispose();
   }
@@ -113,90 +142,92 @@ class _ModernAudioPlayerState extends State<ModernAudioPlayer> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24),
-            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-          ),
-          const Icon(Icons.music_note, size: 48, color: Color(0xFFC8A24A)),
-          const SizedBox(height: 16),
-          Text(
-            widget.titles[_currentIndex],
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontFamily: 'Amiri', fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            "ملف ${_currentIndex + 1} من ${widget.titles.length}",
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          Slider(
-            value: _position.inMilliseconds.toDouble().clamp(0.0, _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0),
-            max: _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0,
-            activeColor: const Color(0xFFC8A24A),
-            onChanged: (val) {
-              _player.seek(Duration(milliseconds: val.toInt()));
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            const Icon(Icons.music_note, size: 48, color: Color(0xFFC8A24A)),
+            const SizedBox(height: 16),
+            Text(
+              widget.titles[_currentIndex],
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'Amiri', fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "ملف ${_currentIndex + 1} من ${widget.titles.length}",
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            Slider(
+              value: _position.inMilliseconds.toDouble().clamp(0.0, _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0),
+              max: _duration.inMilliseconds.toDouble() > 0 ? _duration.inMilliseconds.toDouble() : 1.0,
+              activeColor: const Color(0xFFC8A24A),
+              onChanged: (val) {
+                _player.seek(Duration(milliseconds: val.toInt()));
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_formatDuration(_position), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(_formatDuration(_duration), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(_formatDuration(_position), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                Text(_formatDuration(_duration), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                IconButton(
+                  icon: const Icon(Icons.skip_previous),
+                  onPressed: _player.hasPrevious ? () => _player.seekToPrevious() : null,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.replay_10),
+                  onPressed: () => _player.seek(_position - const Duration(seconds: 10)),
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () {
+                    if (_isPlaying) {
+                      _player.pause();
+                    } else {
+                      _player.play();
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 32,
+                    backgroundColor: const Color(0xFF0F3D2E),
+                    child: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, size: 32, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: const Icon(Icons.forward_10),
+                  onPressed: () => _player.seek(_position + const Duration(seconds: 10)),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.skip_next),
+                  onPressed: _player.hasNext ? () => _player.seekToNext() : null,
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.skip_previous),
-                onPressed: _player.hasPrevious ? () => _player.seekToPrevious() : null,
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.replay_10),
-                onPressed: () => _player.seek(_position - const Duration(seconds: 10)),
-              ),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: () {
-                  if (_isPlaying) {
-                    _player.pause();
-                  } else {
-                    _player.play();
-                  }
-                },
-                child: CircleAvatar(
-                  radius: 32,
-                  backgroundColor: const Color(0xFF0F3D2E),
-                  child: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, size: 32, color: Colors.white),
-                ),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.forward_10),
-                onPressed: () => _player.seek(_position + const Duration(seconds: 10)),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.skip_next),
-                onPressed: _player.hasNext ? () => _player.seekToNext() : null,
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-        ],
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
