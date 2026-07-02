@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nimaalabd"
+    namespace = "com.wasariu.app"
     compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.nimaalabd"
+        applicationId = "com.wasariu.app"
         minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode
@@ -42,6 +42,14 @@ configurations.all {
         force("androidx.compose.remote:remote-creation-android:1.0.0-alpha01")
         force("androidx.core:core:1.13.1")
         force("androidx.core:core-ktx:1.13.1")
+        force("androidx.browser:browser:1.8.0")
+        force("androidx.activity:activity:1.9.3")
+        force("androidx.activity:activity-ktx:1.9.3")
+        force("androidx.lifecycle:lifecycle-runtime:2.8.7")
+        force("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+        force("androidx.lifecycle:lifecycle-viewmodel:2.8.7")
+        force("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+        force("androidx.lifecycle:lifecycle-common:2.8.7")
     }
 }
 

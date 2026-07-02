@@ -1,4 +1,4 @@
-package com.example.nimaalabd
+package com.wasariu.app
 
 import android.content.Intent
 import android.provider.AlarmClock
